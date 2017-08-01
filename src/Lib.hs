@@ -66,7 +66,7 @@ word = do
     l <- letter <|> symbol
     ans <- many (alphaNum <|> symbol)
     return . Word $ l : ans
-        where symbol = oneOf ['+', '=', '<', '>', '!', '-']
+        where symbol = oneOf ['+', '=', '<', '>', '!', '-', '*']
 
 number :: Parsec String st Term
 number = positive <|> try negative
@@ -135,6 +135,7 @@ initialDictionary = M.fromList
     , ("dip", do v <- pop; pop >>= castProgram >>= id; push v)
     , ("+", do a <- pop >>= castInt; b <- pop >>= castInt; push (I $ b + a))
     , ("-", do a <- pop >>= castInt; b <- pop >>= castInt; push (I $ b - a))
+    , ("*", do a <- pop >>= castInt; b <- pop >>= castInt; push (I $ b * a))
     , ("<", do a <- pop >>= castInt; b <- pop >>= castInt; push (B $ b < a))
     , (">", do a <- pop >>= castInt; b <- pop >>= castInt; push (B $ b > a))
     , ("<=", do a <- pop >>= castInt; b <- pop >>= castInt; push (B $ b <= a))
