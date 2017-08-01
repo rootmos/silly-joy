@@ -20,7 +20,8 @@ spec_parser =
             parse "foo " `shouldBe` Right [Word "foo"]
 
         it "should parse: foo bar" $ do
-            parse "foo bar" `shouldBe` Right [Word "foo", Word "bar"]
+            parse "foo bar" `shouldBe` Right
+                [Word "foo", Word "bar"]
 
         it "should parse: []" $ do
             parse "[]" `shouldBe` Right [Quoted []]
@@ -35,10 +36,12 @@ spec_parser =
             parse "[ ]" `shouldBe` Right [Quoted []]
 
         it "should parse: [foo]" $ do
-            parse "[foo]" `shouldBe` Right [Quoted [Word "foo"]]
+            parse "[foo]" `shouldBe` Right
+                [Quoted [Word "foo"]]
 
         it "should parse: [foo] bar" $ do
-            parse "[foo] bar" `shouldBe` Right [Quoted [Word "foo"], Word "bar"]
+            parse "[foo] bar" `shouldBe` Right
+                [Quoted [Word "foo"], Word "bar"]
 
         it "should parse: [ foo bar ]" $ do
             parse "[ foo bar ]" `shouldBe` Right
