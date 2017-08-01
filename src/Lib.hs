@@ -71,7 +71,7 @@ word = do
 number :: Parsec String st Term
 number = positive <|> try negative
     where
-        positive = Number . read <$> many1 digit 
+        positive = Number . read <$> many1 digit
         negative = do
             _ <- char '-'
             n <- many1 digit
@@ -151,6 +151,20 @@ initialDictionary = M.fromList
         case c of
           True -> castProgram true >>= id
           False -> castProgram false >>= id)
+    , ("swap", do a <- pop; b <- pop; push a; push b)
+    , ("concat", do
+        (a, a') <- pop >>= castProgram'
+        (b, b') <- pop >>= castProgram'
+        push $ P (b >> a) (b' ++ a'))
+    , ("b", do
+        a <- pop >>= castProgram
+        b <- pop >>= castProgram
+        b >> a)
+    , ("cons", do
+        (a, a') <- pop >>= castProgram'
+        b <- pop
+        (_, b') <- castProgram' b
+        push $ P (push b >> a) ([Quoted b'] ++ a'))
     ]
 
 initialState :: State
@@ -159,6 +173,10 @@ initialState = State { stack = [], dict = initialDictionary }
 castProgram :: Member (Exc Error) e => Value -> Eff e Program
 castProgram (P p _) = return p
 castProgram _ = throwExc TypeMismatch
+
+castProgram' :: Member (Exc Error) e => Value -> Eff e (Program, AST)
+castProgram' (P p a) = return (p, a)
+castProgram' _ = throwExc TypeMismatch
 
 castInt :: Member (Exc Error) e => Value -> Eff e Int
 castInt (I i) = return i
