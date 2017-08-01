@@ -2,6 +2,12 @@
 module Lib ( parse
            , Term (..)
            , AST
+           , State (..)
+           , simulateUnsafe
+           , expect
+           , send
+           , Value (..)
+           , Error (..)
            ) where
 
 import Text.Parsec ( many1
@@ -11,38 +17,63 @@ import Text.Parsec ( many1
                    , between
                    , spaces
                    , sepEndBy
+                   , many
+                   , option
+                   , eof
+                   , oneOf
                    )
 import qualified Text.Parsec as P
-import Text.Parsec.Char ( char )
+import Text.Parsec.Char ( char, letter, digit )
 import Data.Bifunctor
 import qualified Data.Map.Lazy as M
-import Control.Eff
+import Control.Eff hiding ( send )
+import qualified Control.Eff as E
 import Control.Eff.Exception
+import Control.Exception ( Exception, throw )
 import Data.Void
 import Prelude hiding ( lookup, print )
 
-data Term = Word Name | Quoted AST
+data Term = Word Name | Quoted AST | Number Int
     deriving (Eq, Show)
 type Name = String
 type AST = [Term]
 
 parse :: String -> Either String AST
-parse = first show . P.parse ast "parsing silly-joy"
+parse = first show . P.parse (ast <* eof) "parsing silly-joy"
 
 ast :: Parsec String st AST
 ast = spaces >> term `sepEndBy` spaces
 
 term :: Parsec String st Term
-term = word <|> quoted
+term = word <|> quoted <|> number
 
 word :: Parsec String st Term
-word = Word <$> many1 alphaNum
+word = do
+    l <- letter <|> oneOf ['+']
+    ans <- many alphaNum
+    return . Word $ l : ans
+
+number :: Parsec String st Term
+number = do
+    sign <- option 1 (char '-' >> spaces >> return (-1))
+    n <- many1 digit
+    return $ Number (sign * (read n))
 
 quoted :: Parsec String st Term
 quoted = Quoted <$> between (char '[') (char ']') ast
 
 
 data Value = P Program | I Int
+
+instance Eq Value where
+    (P _) == (P _) = True
+    (I i) == (I i') | i == i' = True
+    _ == _ = False
+
+instance Show Value where
+    show (I i) = show i
+    show (P _) = "<program>"
+
 
 data StateEffect v = Push Value v | Pop (Value -> v) | Lookup Name (Program -> v)
     deriving ( Functor )
@@ -52,24 +83,27 @@ data RealWorldEffect v = Print String v | Input (String -> v)
     deriving ( Functor )
 
 data Error = Undefined Name | PoppingEmptyStack | TypeMismatch
+    deriving ( Show, Eq )
 
-type Program = Eff (StateEffect :> RealWorldEffect :> (Exc Error) :> Void) ()
+instance Exception Error
+
+type Program = Eff (StateEffect :> (Exc Error) :> RealWorldEffect :> Void) ()
 
 data State = State { stack :: [Value]
                    , dict :: M.Map Name Program
                    }
 
 lookup :: Member StateEffect e => Name -> Eff e Program
-lookup n = send . inj $ Lookup n id
+lookup n = E.send . inj $ Lookup n id
 
 push :: Member StateEffect e => Value -> Eff e ()
-push v = send . inj $ Push v ()
+push v = E.send . inj $ Push v ()
 
 pop :: Member StateEffect e => Eff e Value
-pop = send . inj $ Pop id
+pop = E.send . inj $ Pop id
 
 print :: Member RealWorldEffect e => String -> Eff e ()
-print s = send . inj $ Print s ()
+print s = E.send . inj $ Print s ()
 
 initialDictionary :: M.Map Name Program
 initialDictionary = M.fromList
@@ -96,6 +130,7 @@ interpret :: AST -> Program
 interpret [] = return ()
 interpret ((Word n):ts) = lookup n >>= id >> interpret ts
 interpret ((Quoted a):ts) = push (P $ interpret a) >> interpret ts
+interpret ((Number n):ts) = push (I n) >> interpret ts
 
 runStateEffect :: Member (Exc Error) e => Eff (StateEffect :> e) v -> Eff e (State, v)
 runStateEffect = loop initialState
@@ -118,25 +153,43 @@ runStateEffect = loop initialState
               Just p -> loop s (k p)
               Nothing -> throwExc $ Undefined n
 
-instance Show Value where
-    show (I i) = show i
-    show (P _) = "<program>"
-
 data SimulatedIO = ExpectOutput String | SendInput String
-data SimulatedIOError = UnexpectedOutput String String
+
+send :: String -> SimulatedIO
+send = SendInput
+
+expect :: String -> SimulatedIO
+expect = ExpectOutput
+
+data SimulatedIOError = UnexpectedOutput String
+                      | IncorrectOutput String String
                       | UnexpectedInput
                       | EndOfExpectations
+                      deriving ( Show )
 
-simulateRealWorld :: Member (Exc SimulatedIOError) e
-                  => [SimulatedIO] -> Eff (RealWorldEffect :> e) v
-                  -> Eff e v
-simulateRealWorld exs = freeMap return
-    (\u -> handleRelay u (simulateRealWorld exs) (handle exs))
+instance Exception SimulatedIOError
+
+simulateRealWorld :: [SimulatedIO] -> Eff (RealWorldEffect :> e) v -> Eff e v
+simulateRealWorld expects = freeMap return
+    (\u -> handleRelay u (simulateRealWorld expects) (handle expects))
         where
-            handle [] _ = throwExc EndOfExpectations
-            handle (ExpectOutput o : exs) (Print o' k) 
+            handle [] _ = throw EndOfExpectations
+            handle (ExpectOutput o : exs) (Print o' k)
               | o == o' = simulateRealWorld exs k
-              | otherwise = throwExc $ UnexpectedOutput o o'
+              | otherwise = throw $ IncorrectOutput o o'
 
             handle (SendInput i : exs) (Input k) =
                 simulateRealWorld exs (k i)
+
+            handle (SendInput _ : _) (Print o _) =
+                throw $ UnexpectedOutput o
+
+            handle (ExpectOutput _ : _) (Input _) =
+                throw $ UnexpectedInput
+
+simulateUnsafe :: String -> [SimulatedIO] -> State
+simulateUnsafe s exs =
+    let parsed = either (error . show) id $ parse s in
+    let p = interpret parsed in
+    let (st, ()) = either throw id . run . simulateRealWorld exs . runExc $ runStateEffect p in
+        st

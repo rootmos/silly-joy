@@ -35,6 +35,7 @@ test-suite silly-joy-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             Main.hs
+  other-modules:       Spec
   build-depends:       base
                      , silly-joy
                      , tasty >= 0.11.2.3
