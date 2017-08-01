@@ -1,6 +1,6 @@
 module Main where
 
-import Lib
+import Lib (repl)
 
 main :: IO ()
-main = undefined
+main = repl

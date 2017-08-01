@@ -109,3 +109,12 @@ spec_simulate =
         it "should simulate: 1 i" $ do
             evaluate (simulateUnsafe "1 i" [])
                 `shouldThrow` (== TypeMismatch)
+        it "should simulate: [1] 2 dip +" $ do
+            let (State { stack = st }) = simulateUnsafe "[1] 2 dip +" []
+            st `shouldBe` [I 3]
+        it "should simulate: 1 2 dip" $ do
+            evaluate (simulateUnsafe "1 2 dip" [])
+                `shouldThrow` (== TypeMismatch)
+        it "should simulate: 1 [foo] dip" $ do
+            evaluate (simulateUnsafe "1 [foo] dip" [])
+                `shouldThrow` (== TypeMismatch)
