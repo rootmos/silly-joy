@@ -19,9 +19,9 @@ import Text.Parsec ( many1
                    , spaces
                    , sepEndBy
                    , many
-                   , option
                    , eof
                    , oneOf
+                   , try
                    )
 import qualified Text.Parsec as P
 import Text.Parsec.Char ( char, letter, digit )
@@ -59,33 +59,39 @@ ast :: Parsec String st AST
 ast = spaces >> term `sepEndBy` spaces
 
 term :: Parsec String st Term
-term = word <|> quoted <|> number
+term = number <|> word <|> quoted
 
 word :: Parsec String st Term
 word = do
-    l <- letter <|> oneOf ['+']
-    ans <- many alphaNum
+    l <- letter <|> symbol
+    ans <- many (alphaNum <|> symbol)
     return . Word $ l : ans
+        where symbol = oneOf ['+', '=', '<', '>', '!', '-']
 
 number :: Parsec String st Term
-number = do
-    sign <- option 1 (char '-' >> spaces >> return (-1))
-    n <- many1 digit
-    return $ Number (sign * (read n))
+number = positive <|> try negative
+    where
+        positive = Number . read <$> many1 digit 
+        negative = do
+            _ <- char '-'
+            n <- many1 digit
+            return . Number $ -1 * read n
 
 quoted :: Parsec String st Term
 quoted = Quoted <$> between (char '[') (char ']') ast
 
 
-data Value = P Program AST | I Int
+data Value = P Program AST | I Int | B Bool
 
 instance Eq Value where
     (P _ a) == (P _ a') | a == a' = True
     (I i) == (I i') | i == i' = True
+    (B b) == (B b') | b == b' = True
     _ == _ = False
 
 instance Show Value where
     show (I i) = show i
+    show (B b) = show b
     show (P _ s) = "[" ++ prettyAST s ++ "]"
 
 
@@ -127,8 +133,24 @@ initialDictionary = M.fromList
     , ("i", pop >>= castProgram >>= id)
     , ("dup", do v <- pop; push v; push v)
     , ("dip", do v <- pop; pop >>= castProgram >>= id; push v)
-    , ("+", do a <- pop >>= castInt; b <- pop >>= castInt; push (I $ a + b))
+    , ("+", do a <- pop >>= castInt; b <- pop >>= castInt; push (I $ b + a))
+    , ("-", do a <- pop >>= castInt; b <- pop >>= castInt; push (I $ b - a))
+    , ("<", do a <- pop >>= castInt; b <- pop >>= castInt; push (B $ b < a))
+    , (">", do a <- pop >>= castInt; b <- pop >>= castInt; push (B $ b > a))
+    , ("<=", do a <- pop >>= castInt; b <- pop >>= castInt; push (B $ b <= a))
+    , (">=", do a <- pop >>= castInt; b <- pop >>= castInt; push (B $ b >= a))
+    , ("=", do a <- pop >>= castInt; b <- pop >>= castInt; push (B $ b == a))
+    , ("!=", do a <- pop >>= castInt; b <- pop >>= castInt; push (B $ b /= a))
     , ("print", pop >>= print . show)
+    , ("ifte", do
+        false <- pop
+        true <- pop
+        cond <- pop
+
+        c <- castProgram cond >>= id >> pop >>= castBool
+        case c of
+          True -> castProgram true >>= id
+          False -> castProgram false >>= id)
     ]
 
 initialState :: State
@@ -141,6 +163,10 @@ castProgram _ = throwExc TypeMismatch
 castInt :: Member (Exc Error) e => Value -> Eff e Int
 castInt (I i) = return i
 castInt _ = throwExc TypeMismatch
+
+castBool :: Member (Exc Error) e => Value -> Eff e Bool
+castBool (B b) = return b
+castBool _ = throwExc TypeMismatch
 
 interpret :: AST -> Program
 interpret [] = return ()

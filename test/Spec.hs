@@ -11,9 +11,6 @@ spec_parser =
         it "should parse empty string " $ do
             parse "" `shouldBe` Right []
 
-        it "should parse: 1" $ do
-            parse "1" `shouldBe` Right [Number 1]
-
         it "should parse: foo" $ do
             parse "foo" `shouldBe` Right [Word "foo"]
 
@@ -23,8 +20,18 @@ spec_parser =
         it "should parse: foo  (trailing space)" $ do
             parse "foo " `shouldBe` Right [Word "foo"]
 
-        it "should parse: +" $ do
-            parse "+" `shouldBe` Right [Word "+"]
+        it "should parse: 1" $ do parse "1" `shouldBe` Right [Number 1]
+        it "should parse: 0" $ do parse "0" `shouldBe` Right [Number 0]
+        it "should parse: -7" $ do parse "-7" `shouldBe` Right [Number (-7)]
+
+        it "should parse: +" $ do parse "+" `shouldBe` Right [Word "+"]
+        it "should parse: -" $ do parse "-" `shouldBe` Right [Word "-"]
+        it "should parse: =" $ do parse "=" `shouldBe` Right [Word "="]
+        it "should parse: !=" $ do parse "!=" `shouldBe` Right [Word "!="]
+        it "should parse: <" $ do parse "<" `shouldBe` Right [Word "<"]
+        it "should parse: >" $ do parse ">" `shouldBe` Right [Word ">"]
+        it "should parse: <=" $ do parse "<=" `shouldBe` Right [Word "<="]
+        it "should parse: >=" $ do parse ">=" `shouldBe` Right [Word ">="]
 
         it "should parse: foo bar" $ do
             parse "foo bar" `shouldBe` Right
@@ -88,6 +95,9 @@ spec_simulate =
         it "should simulate: 1 2 +" $ do
             let (State { stack = st }) = simulateUnsafe "1 2 +" []
             st `shouldBe` [I 3]
+        it "should simulate: 1 2 -" $ do
+            let (State { stack = st }) = simulateUnsafe "1 2 -" []
+            st `shouldBe` [I (-1)]
         it "should simulate: 1 +" $ do
             evaluate (simulateUnsafe "1 +" [])
                 `shouldThrow` (== PoppingEmptyStack)
@@ -118,3 +128,46 @@ spec_simulate =
         it "should simulate: 1 [foo] dip" $ do
             evaluate (simulateUnsafe "1 [foo] dip" [])
                 `shouldThrow` (== TypeMismatch)
+
+        it "should simulate: 1 2 <" $ do
+            stack (simulateUnsafe "1 2 <" []) `shouldBe` [B True]
+        it "should simulate: 2 2 <" $ do
+            stack (simulateUnsafe "2 2 <" []) `shouldBe` [B False]
+
+        it "should simulate: 2 1 >" $ do
+            stack (simulateUnsafe "2 1 >" []) `shouldBe` [B True]
+        it "should simulate: 2 2 >" $ do
+            stack (simulateUnsafe "2 2 >" []) `shouldBe` [B False]
+
+        it "should simulate: 3 1 >=" $ do
+            stack (simulateUnsafe "3 1 >=" []) `shouldBe` [B True]
+        it "should simulate: 1 3 >=" $ do
+            stack (simulateUnsafe "1 3 >=" []) `shouldBe` [B False]
+        it "should simulate: 2 2 >=" $ do
+            stack (simulateUnsafe "2 2 >=" []) `shouldBe` [B True]
+
+        it "should simulate: 3 1 <=" $ do
+            stack (simulateUnsafe "3 1 <=" []) `shouldBe` [B False]
+        it "should simulate: 1 3 <=" $ do
+            stack (simulateUnsafe "1 3 <=" []) `shouldBe` [B True]
+        it "should simulate: 2 2 <=" $ do
+            stack (simulateUnsafe "2 2 <=" []) `shouldBe` [B True]
+
+        it "should simulate: 1 2 =" $ do
+            stack (simulateUnsafe "1 2 =" []) `shouldBe` [B False]
+        it "should simulate: 2 2 =" $ do
+            stack (simulateUnsafe "2 2 =" []) `shouldBe` [B True]
+
+        it "should simulate: 1 2 !=" $ do
+            stack (simulateUnsafe "1 2 !=" []) `shouldBe` [B True]
+        it "should simulate: 2 2 !=" $ do
+            stack (simulateUnsafe "2 2 !=" []) `shouldBe` [B False]
+
+        it "should simulate: [1 1 =] [7] [8] ifte" $ do
+            stack (simulateUnsafe "[1 1 =] [7] [8] ifte" []) `shouldBe` [I 7]
+        it "should simulate: [1 2 =] [7] [8] ifte" $ do
+            stack (simulateUnsafe "[1 2 =] [7] [8] ifte" []) `shouldBe` [I 8]
+        it "should simulate: 1 1 [=] [7] [8] ifte" $ do
+            stack (simulateUnsafe "1 1 [=] [7] [8] ifte" []) `shouldBe` [I 7]
+        it "should simulate: 1 2 [=] [7] [8] ifte" $ do
+            stack (simulateUnsafe "1 2 [=] [7] [8] ifte" []) `shouldBe` [I 8]
