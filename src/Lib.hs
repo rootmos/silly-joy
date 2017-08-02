@@ -98,13 +98,19 @@ instance Show Value where
 data StateEffect v = Push Value v
                    | Pop (Value -> v)
                    | Lookup Name (Program -> v)
+                   | PushState v
+                   | PopState v
     deriving ( Functor )
 
-data RealWorldEffect v = Print String v | Input (String -> v)
+data RealWorldEffect v = Print String v
+                       | Input (String -> v)
     -- TODO: Maybe extend Input Int to Input Value and interpret string
     deriving ( Functor )
 
-data Error = Undefined Name | PoppingEmptyStack | TypeMismatch
+data Error = Undefined Name
+           | PoppingEmptyStack
+           | PoppingEmptyStateStack
+           | TypeMismatch
     deriving ( Show, Eq )
 
 instance Exception Error
@@ -113,7 +119,15 @@ type Program = Eff (StateEffect :> (Exc Error) :> RealWorldEffect :> Void) ()
 
 data State = State { stack :: [Value]
                    , dict :: M.Map Name Program
+                   , prevState :: Maybe State
                    }
+
+instance Show State where
+    show (State { stack = s, prevState = ps }) =
+        "stack=" ++ intercalate "," (map show s) ++ prettyPrevState ps
+            where
+                prettyPrevState (Just st) = " prevState={" ++ show st ++ "}"
+                prettyPrevState Nothing = " prevState={}"
 
 lookup :: Member StateEffect e => Name -> Eff e Program
 lookup n = E.send . inj $ Lookup n id
@@ -124,15 +138,32 @@ push v = E.send . inj $ Push v ()
 pop :: Member StateEffect e => Eff e Value
 pop = E.send . inj $ Pop id
 
+local :: Member StateEffect e => Eff e a -> Eff e a
+local p = do
+    () <- E.send . inj $ PushState ()
+    a <- p
+    () <- E.send . inj $ PopState ()
+    return a
+
 print :: Member RealWorldEffect e => String -> Eff e ()
 print s = E.send . inj $ Print s ()
 
 initialDictionary :: M.Map Name Program
 initialDictionary = M.fromList
-    [ ("pop", pop >> return ())
-    , ("i", pop >>= castProgram >>= id)
-    , ("dup", do v <- pop; push v; push v)
-    , ("dip", do v <- pop; pop >>= castProgram >>= id; push v)
+    [ ("pop", do
+        _ <- pop
+        return ())
+    , ("i", do
+        pop >>= castProgram >>= id)
+    , ("dup", do
+        v <- pop
+        push v
+        push v)
+    , ("dip", do
+        p <- pop
+        v <- pop
+        castProgram p >>= id
+        push v)
     , ("+", do a <- pop >>= castInt; b <- pop >>= castInt; push (I $ b + a))
     , ("-", do a <- pop >>= castInt; b <- pop >>= castInt; push (I $ b - a))
     , ("*", do a <- pop >>= castInt; b <- pop >>= castInt; push (I $ b * a))
@@ -148,7 +179,7 @@ initialDictionary = M.fromList
         true <- pop
         cond <- pop
 
-        c <- castProgram cond >>= id >> pop >>= castBool
+        c <- local (castProgram cond >>= id >> pop >>= castBool)
         case c of
           True -> castProgram true >>= id
           False -> castProgram false >>= id)
@@ -169,7 +200,10 @@ initialDictionary = M.fromList
     ]
 
 initialState :: State
-initialState = State { stack = [], dict = initialDictionary }
+initialState = State { stack = []
+                     , dict = initialDictionary
+                     , prevState = Nothing
+                     }
 
 castProgram :: Member (Exc Error) e => Value -> Eff e Program
 castProgram (P p _) = return p
@@ -195,14 +229,14 @@ interpret ((Number n):ts) = push (I n) >> interpret ts
 
 runStateEffect :: Member (Exc Error) e => State -> Eff (StateEffect :> e) v
                -> Eff e (State, v)
-runStateEffect state = freeMap (\x -> return (state, x))
-    (\u -> handleRelay u (runStateEffect state) (handle state))
+runStateEffect st = freeMap (\x -> return (st, x))
+    (\u -> handleRelay u (runStateEffect st) (handle st))
         where
         handle s (Push v k) =
             let s' = s { stack = v : stack s } in runStateEffect s' k
 
-        handle (s@State { stack = v : st }) (Pop k) =
-            runStateEffect (s { stack = st }) (k v)
+        handle (s@State { stack = v : stk }) (Pop k) =
+            runStateEffect (s { stack = stk }) (k v)
 
         handle (State { stack = [] }) (Pop _) =
             throwExc PoppingEmptyStack
@@ -211,6 +245,16 @@ runStateEffect state = freeMap (\x -> return (state, x))
             case M.lookup n d of
               Just p -> runStateEffect s (k p)
               Nothing -> throwExc $ Undefined n
+
+        handle s (PushState k) = do
+            let s' = s { prevState = Just s }
+            runStateEffect s' k
+
+        handle (State { prevState = Just s }) (PopState k) =
+            runStateEffect s k
+
+        handle (State { prevState = Nothing }) (PopState _) =
+            throwExc PoppingEmptyStateStack
 
 data SimulatedIO = ExpectOutput String | SendInput String
 

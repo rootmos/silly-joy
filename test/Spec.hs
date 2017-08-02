@@ -112,8 +112,15 @@ spec_simulate =
             let (State { stack = st }) = simulateUnsafe "[foo]" []
             length st `shouldBe` 1
         it "should simulate: 7 [dup] i" $ do
-            let (State { stack = st }) = simulateUnsafe "7 [dup] i" []
-            st `shouldBe` [I 7, I 7]
+            stack (simulateUnsafe "7 [dup] i" []) `shouldBe` [I 7, I 7]
+        it "should simulate: [[7]] i i" $ do
+            stack (simulateUnsafe "[[7]] i i" []) `shouldBe` [I 7]
+        it "should simulate: [[7 8] dup] i dip i" $ do
+            stack (simulateUnsafe "[[7 8] dup] i dip i" [])
+                `shouldBe` [I 8, I 7, I 8, I 7]
+        it "should simulate: [[7 8] dup] i b" $ do
+            stack (simulateUnsafe "[[7 8] dup] i b" [])
+                `shouldBe` [I 8, I 7, I 8, I 7]
         it "should simulate: [foo] +" $ do
             evaluate (simulateUnsafe "[foo] +" [])
                 `shouldThrow` (== TypeMismatch)
@@ -123,14 +130,15 @@ spec_simulate =
         it "should simulate: 1 i" $ do
             evaluate (simulateUnsafe "1 i" [])
                 `shouldThrow` (== TypeMismatch)
-        it "should simulate: [1] 2 dip +" $ do
-            let (State { stack = st }) = simulateUnsafe "[1] 2 dip +" []
-            st `shouldBe` [I 3]
-        it "should simulate: 1 2 dip" $ do
-            evaluate (simulateUnsafe "1 2 dip" [])
-                `shouldThrow` (== TypeMismatch)
-        it "should simulate: 1 [foo] dip" $ do
-            evaluate (simulateUnsafe "1 [foo] dip" [])
+
+        it "should simulate: 2 3 4 [+] dip" $ do
+            stack (simulateUnsafe "2 3 4 [+] dip" []) `shouldBe` [I 4, I 5]
+
+        it "should simulate: [foo] dip" $ do
+            evaluate (simulateUnsafe "[foo] dip" [])
+                `shouldThrow` (== PoppingEmptyStack)
+        it "should simulate: [foo] 1 dip" $ do
+            evaluate (simulateUnsafe "[foo] 1 dip" [])
                 `shouldThrow` (== TypeMismatch)
 
         it "should simulate: 1 2 <" $ do
@@ -172,9 +180,11 @@ spec_simulate =
         it "should simulate: [1 2 =] [7] [8] ifte" $ do
             stack (simulateUnsafe "[1 2 =] [7] [8] ifte" []) `shouldBe` [I 8]
         it "should simulate: 1 1 [=] [7] [8] ifte" $ do
-            stack (simulateUnsafe "1 1 [=] [7] [8] ifte" []) `shouldBe` [I 7]
+            stack (simulateUnsafe "1 1 [=] [7] [8] ifte" [])
+                `shouldBe` [I 7, I 1, I 1]
         it "should simulate: 1 2 [=] [7] [8] ifte" $ do
-            stack (simulateUnsafe "1 2 [=] [7] [8] ifte" []) `shouldBe` [I 8]
+            stack (simulateUnsafe "1 2 [=] [7] [8] ifte" [])
+                `shouldBe` [I 8, I 2, I 1]
 
         it "should simulate: 1 2 swap" $ do
             stack (simulateUnsafe "1 2 swap" []) `shouldBe` [I 1, I 2]
@@ -190,3 +200,8 @@ spec_simulate =
 
         it "should simulate: [1] [i] cons i" $ do
             stack (simulateUnsafe "[1] [i] cons i" []) `shouldBe` [I 1]
+
+        it "should simulate factorial example" $ do
+            stack (flip simulateUnsafe [] $
+                "5 [ [pop 0 =] [pop pop 1]" ++
+                "[ [dup 1 -] dip dup i * ] ifte ] dup i") `shouldBe` [I 120]
