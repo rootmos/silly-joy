@@ -40,7 +40,7 @@ import Data.List (intercalate)
 import Data.OpenUnion (weaken)
 import System.IO (hSetBuffering, BufferMode(NoBuffering), stdout)
 
-data Term = Word Name | Quoted AST | Number Int
+data Term = Word Name | Quoted AST | Number Integer
     deriving (Eq, Show)
 type Name = String
 type AST = [Term]
@@ -81,7 +81,7 @@ quoted :: Parsec String st Term
 quoted = Quoted <$> between (char '[') (char ']') ast
 
 
-data Value = P Program AST | I Int | B Bool
+data Value = P Program AST | I Integer | B Bool
 
 instance Eq Value where
     (P _ a) == (P _ a') | a == a' = True
@@ -217,7 +217,7 @@ castProgram' :: Member (Exc Error) e => Value -> Eff e (Program, AST)
 castProgram' (P p a) = return (p, a)
 castProgram' _ = throwExc TypeMismatch
 
-castInt :: Member (Exc Error) e => Value -> Eff e Int
+castInt :: Member (Exc Error) e => Value -> Eff e Integer
 castInt (I i) = return i
 castInt _ = throwExc TypeMismatch
 
