@@ -41,6 +41,7 @@ import Data.Typeable
 import Data.List (intercalate)
 import Data.OpenUnion (weaken)
 import System.IO (hSetBuffering, BufferMode(NoBuffering), stdout)
+import Text.Read (readMaybe)
 
 data Term = Word Name
           | Quoted AST
@@ -79,7 +80,7 @@ binding = do
     return $ Binding n a
     where
         name = many1 $ alphaNum
-               <|> oneOf ['+', '=', '<', '>', '!', '-', '*']
+               <|> oneOf ['+', '=', '<', '>', '!', '-', '*', '_']
 
 term :: Parsec String st Term
 term = number <|> word <|> quoted <|> str
@@ -89,7 +90,7 @@ str = Str <$> between (char '"') (char '"') (many quoted_char)
     where
         quoted_char = space
                <|> alphaNum
-               <|> oneOf ['+', '=', '<', '>', '!', '-', '*']
+               <|> oneOf ['+', '=', '<', '>', '!', '-', '*', '_']
                <|> (try (char '\\') >> char '"')
 
 word :: Parsec String st Term
@@ -97,7 +98,7 @@ word = do
     l <- letter <|> symbol
     ans <- many (alphaNum <|> symbol)
     return . Word $ l : ans
-        where symbol = oneOf ['+', '=', '<', '>', '!', '-', '*']
+        where symbol = oneOf ['+', '=', '<', '>', '!', '-', '*', '_']
 
 number :: Parsec String st Term
 number = positive <|> try negative
@@ -144,6 +145,7 @@ data Error = Undefined Name
            | PoppingEmptyStack
            | PoppingEmptyStateStack
            | TypeMismatch
+           | UnparseableAsNumber String
     deriving ( Show, Eq )
 
 instance Exception Error
@@ -183,6 +185,9 @@ bind n p = E.send . inj $ Bind n p ()
 
 print :: Member RealWorldEffect e => String -> Eff e ()
 print s = E.send . inj $ Print s ()
+
+input :: Member RealWorldEffect e => Eff e String
+input = E.send . inj $ Input id
 
 initialDictionary :: M.Map Name Program
 initialDictionary = M.fromList
@@ -248,6 +253,14 @@ initialDictionary = M.fromList
         n <- pop >>= castStr
         p <- pop >>= castProgram
         bind n p)
+    , ("read_line", do
+        s <- input
+        push $ S s)
+    , ("read_int", do
+        s <- input
+        case readMaybe s of
+          Just i -> push $ I i
+          Nothing -> throwExc $ UnparseableAsNumber s)
     ]
 
 initialState :: State

@@ -297,3 +297,14 @@ spec_simulate =
         it "should simulate: [x := 1; 2] i x" $ do
             stack (simulateUnsafe "[x := 1; 2] i x" [])
                 `shouldBe` [I 1, I 2]
+
+        it "should simulate: read_int" $ do
+            stack (simulateUnsafe "read_int" [send "7"]) `shouldBe` [I 7]
+
+        it "should simulate: read_int" $ do
+            evaluate (simulateUnsafe "read_int" [send "foo"])
+                `shouldThrow` (== UnparseableAsNumber "foo")
+
+        it "should simulate: read_line" $ do
+            stack (simulateUnsafe "read_line" [send "foo"])
+                `shouldBe` [S "foo"]
