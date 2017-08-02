@@ -80,6 +80,26 @@ spec_parser =
             parse "x := 7; x" `shouldBe` Right
                 [Binding "x" [Number 7], Word "x"]
 
+        it "should parse: x := 7" $ do
+            parse "x := 7" `shouldBe` Right
+                [Binding "x" [Number 7]]
+
+        it "should parse: x := 7;" $ do
+            parse "x := 7;" `shouldBe` Right
+                [Binding "x" [Number 7]]
+
+        it "should parse: x;" $ do
+            parse "x;" `shouldBe` Right [Word "x"]
+
+        it "should parse: x; y" $ do
+            parse "x; y" `shouldBe` Right [Word "x", Word "y"]
+
+        it "should parse: x ;y" $ do
+            parse "x ;y" `shouldBe` Right [Word "x", Word "y"]
+
+        it "should parse: x ; y" $ do
+            parse "x ; y" `shouldBe` Right [Word "x", Word "y"]
+
 spec_simulate =
     describe "simulate" $ do
         it "should simulate empty string" $ do
@@ -269,6 +289,10 @@ spec_simulate =
         it "should simulate: [x := 1; x] I x" $ do
             evaluate (simulateUnsafe "[x := 1; x] I x" [])
                 `shouldThrow` (== Undefined "x")
+
+        it "should simulate: [x := 1] i x" $ do
+            stack (simulateUnsafe "[x := 1] i x" [])
+                `shouldBe` [I 1]
 
         it "should simulate: [x := 1; 2] i x" $ do
             stack (simulateUnsafe "[x := 1; 2] i x" [])

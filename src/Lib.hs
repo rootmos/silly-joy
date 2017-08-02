@@ -18,6 +18,7 @@ import Text.Parsec ( many1
                    , between
                    , spaces
                    , space
+                   , optional
                    , sepEndBy
                    , many
                    , eof
@@ -63,7 +64,9 @@ parse :: String -> Either String AST
 parse = first show . P.parse (ast <* eof) "parsing silly-joy"
 
 ast :: Parsec String st AST
-ast = spaces >> (try binding <|> term) `sepEndBy` spaces
+ast = spaces >> (try binding <|> term) `sepEndBy` separator
+    where
+        separator = optional spaces >> optional (char ';') >> spaces
 
 binding :: Parsec String st Term
 binding = do
@@ -72,8 +75,7 @@ binding = do
     _ <- char ':'
     _ <- char '='
     _ <- spaces
-    a <- ast
-    _ <- char ';'
+    a <- term `sepEndBy` spaces
     return $ Binding n a
     where
         name = many1 $ alphaNum
