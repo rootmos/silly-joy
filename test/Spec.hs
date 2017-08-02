@@ -76,6 +76,10 @@ spec_parser =
             parse "[[foo] bar]" `shouldBe` Right
                 [Quoted [Quoted [Word "foo"], Word "bar"]]
 
+        it "should parse: x := 7; x" $ do
+            parse "x := 7; x" `shouldBe` Right
+                [Binding "x" [Number 7], Word "x"]
+
 spec_simulate =
     describe "simulate" $ do
         it "should simulate empty string" $ do
@@ -248,3 +252,24 @@ spec_simulate =
         it "should simulate: [[1] \"x\" bind x] I x" $ do
             evaluate (simulateUnsafe "[[1] \"x\" bind x] I x" [])
                 `shouldThrow` (== Undefined "x")
+
+
+        it "should simulate: plus := +; 1 2 plus" $ do
+            stack (simulateUnsafe "plus := +; 1 2 plus" [])
+                `shouldBe` [I 3]
+
+        it "should simulate: i := 1; i" $ do
+            stack (simulateUnsafe "i := 1; i" [])
+                `shouldBe` [I 1]
+
+        it "should simulate: bind := 2; bind" $ do
+            stack (simulateUnsafe "bind := 2; bind" [])
+                `shouldBe` [I 2]
+
+        it "should simulate: [x := 1; x] I x" $ do
+            evaluate (simulateUnsafe "[x := 1; x] I x" [])
+                `shouldThrow` (== Undefined "x")
+
+        it "should simulate: [x := 1; 2] i x" $ do
+            stack (simulateUnsafe "[x := 1; 2] i x" [])
+                `shouldBe` [I 1, I 2]

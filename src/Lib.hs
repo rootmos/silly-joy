@@ -41,7 +41,11 @@ import Data.List (intercalate)
 import Data.OpenUnion (weaken)
 import System.IO (hSetBuffering, BufferMode(NoBuffering), stdout)
 
-data Term = Word Name | Quoted AST | Number Integer | Str String
+data Term = Word Name
+          | Quoted AST
+          | Number Integer
+          | Str String
+          | Binding Name AST
     deriving (Eq, Show)
 type Name = String
 type AST = [Term]
@@ -53,12 +57,27 @@ prettyAST = intercalate " " . map prettyTerm
         prettyTerm (Number n) = show n
         prettyTerm (Quoted a) = "[" ++ prettyAST a ++ "]"
         prettyTerm (Str s) = "\"" ++ s ++ "\""
+        prettyTerm (Binding n a) = n ++ " := " ++ prettyAST a ++ ";"
 
 parse :: String -> Either String AST
 parse = first show . P.parse (ast <* eof) "parsing silly-joy"
 
 ast :: Parsec String st AST
-ast = spaces >> term `sepEndBy` spaces
+ast = spaces >> (try binding <|> term) `sepEndBy` spaces
+
+binding :: Parsec String st Term
+binding = do
+    n <- name
+    _ <- spaces
+    _ <- char ':'
+    _ <- char '='
+    _ <- spaces
+    a <- ast
+    _ <- char ';'
+    return $ Binding n a
+    where
+        name = many1 $ alphaNum
+               <|> oneOf ['+', '=', '<', '>', '!', '-', '*']
 
 term :: Parsec String st Term
 term = number <|> word <|> quoted <|> str
@@ -261,6 +280,11 @@ interpret ((Word n):ts) = lookup n >>= id >> interpret ts
 interpret ((Quoted a):ts) = push (P (interpret a) a) >> interpret ts
 interpret ((Number n):ts) = push (I n) >> interpret ts
 interpret ((Str s):ts) = push (S s) >> interpret ts
+interpret ((Binding n a):ts) = do
+    push $ P (interpret a) a
+    push $ S n
+    lookup "bind" >>= id
+    interpret ts
 
 runStateEffect :: Member (Exc Error) e => State -> Eff (StateEffect :> e) v
                -> Eff e (State, v)
