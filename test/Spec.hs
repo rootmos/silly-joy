@@ -192,6 +192,13 @@ spec_simulate =
         it "should simulate: [1 2] i" $ do
             stack (simulateUnsafe "[1 2] i" []) `shouldBe` [I 2, I 1]
 
+        it "should simulate: 1 2 [+] I" $ do
+            stack (simulateUnsafe "1 2 [+] I" []) `shouldBe` [I 3, I 2, I 1]
+
+        it "should simulate: 1 2 3 [pop + 7 swap] I" $ do
+            stack (simulateUnsafe "1 2 3 [pop + 7 swap] I" [])
+                `shouldBe` [I 3, I 3, I 2, I 1]
+
         it "should simulate: [1] [2] concat i" $ do
             stack (simulateUnsafe "[1] [2] concat i" []) `shouldBe` [I 2, I 1]
 

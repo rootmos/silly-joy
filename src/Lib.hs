@@ -183,6 +183,10 @@ initialDictionary = M.fromList
         case c of
           True -> castProgram true >>= id
           False -> castProgram false >>= id)
+    , ("I", do
+        p <- pop >>= castProgram
+        v <- local (p >> pop)
+        push v)
     , ("swap", do a <- pop; b <- pop; push a; push b)
     , ("concat", do
         (a, a') <- pop >>= castProgram'
