@@ -111,6 +111,7 @@ data StateEffect v = Push Value v
                    | Lookup Name (Program -> v)
                    | PushState v
                    | PopState v
+                   | Bind Name Program v
     deriving ( Functor )
 
 data RealWorldEffect v = Print String v
@@ -155,6 +156,9 @@ local p = do
     a <- p
     () <- E.send . inj $ PopState ()
     return a
+
+bind :: Member StateEffect e => Name -> Program -> Eff e ()
+bind n p = E.send . inj $ Bind n p ()
 
 print :: Member RealWorldEffect e => String -> Eff e ()
 print s = E.send . inj $ Print s ()
@@ -219,6 +223,10 @@ initialDictionary = M.fromList
         s <- pop >>= castStr
         s' <- pop >>= castStr
         push $ S (s' ++ s))
+    , ("bind", do
+        n <- pop >>= castStr
+        p <- pop >>= castProgram
+        bind n p)
     ]
 
 initialState :: State
@@ -282,6 +290,11 @@ runStateEffect st = freeMap (\x -> return (st, x))
 
         handle (State { prevState = Nothing }) (PopState _) =
             throwExc PoppingEmptyStateStack
+
+        handle (s@State { dict = d }) (Bind n p k) = do
+            let s' = s { dict = M.insert n p d }
+            runStateEffect s' k
+
 
 data SimulatedIO = ExpectOutput String | SendInput String
 

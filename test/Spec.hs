@@ -232,3 +232,19 @@ spec_simulate =
         it "should simulate: \"foo\" \"bar\" strcat" $ do
             stack (simulateUnsafe "\"foo\" \"bar\" strcat" [])
                 `shouldBe` [S "foobar"]
+
+        it "should simulate: [+] \"plus\" bind 1 2 plus" $ do
+            stack (simulateUnsafe "[+] \"plus\" bind 1 2 plus" [])
+                `shouldBe` [I 3]
+
+        it "should simulate: [1] \"i\" bind i" $ do
+            stack (simulateUnsafe "[1] \"i\" bind i" [])
+                `shouldBe` [I 1]
+
+        it "should simulate: [2] \"bind\" bind bind" $ do
+            stack (simulateUnsafe "[2] \"bind\" bind bind" [])
+                `shouldBe` [I 2]
+
+        it "should simulate: [[1] \"x\" bind x] I x" $ do
+            evaluate (simulateUnsafe "[[1] \"x\" bind x] I x" [])
+                `shouldThrow` (== Undefined "x")
