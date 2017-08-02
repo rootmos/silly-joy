@@ -20,6 +20,12 @@ spec_parser =
         it "should parse: foo  (trailing space)" $ do
             parse "foo " `shouldBe` Right [Word "foo"]
 
+        it "should parse: \"foo\"" $ do
+            parse "\"foo\"" `shouldBe` Right [Str "foo"]
+
+        it "should parse: \"foo \\\"bar\\\"\"" $ do
+            parse "\"foo \\\"bar\\\"\"" `shouldBe` Right [Str "foo \"bar\""]
+
         it "should parse: 1" $ do parse "1" `shouldBe` Right [Number 1]
         it "should parse: 0" $ do parse "0" `shouldBe` Right [Number 0]
         it "should parse: -7" $ do parse "-7" `shouldBe` Right [Number (-7)]
@@ -212,3 +218,17 @@ spec_simulate =
             stack (flip simulateUnsafe [] $
                 "5 [ [pop 0 =] [pop pop 1]" ++
                 "[ [dup 1 -] dip dup i * ] ifte ] dup i") `shouldBe` [I 120]
+
+        it "should simulate: \"foo\"" $ do
+            stack (simulateUnsafe "\"foo\"" []) `shouldBe` [S "foo"]
+
+        it "should simulate: \"foo\" strlen" $ do
+            stack (simulateUnsafe "\"foo\" strlen" []) `shouldBe` [I 3]
+
+        it "should simulate: 1 strlen" $ do
+            evaluate (simulateUnsafe "1 strlen" [])
+                `shouldThrow` (== TypeMismatch)
+
+        it "should simulate: \"foo\" \"bar\" strcat" $ do
+            stack (simulateUnsafe "\"foo\" \"bar\" strcat" [])
+                `shouldBe` [S "foobar"]

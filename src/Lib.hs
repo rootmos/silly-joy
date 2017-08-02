@@ -17,6 +17,7 @@ import Text.Parsec ( many1
                    , (<|>)
                    , between
                    , spaces
+                   , space
                    , sepEndBy
                    , many
                    , eof
@@ -40,7 +41,7 @@ import Data.List (intercalate)
 import Data.OpenUnion (weaken)
 import System.IO (hSetBuffering, BufferMode(NoBuffering), stdout)
 
-data Term = Word Name | Quoted AST | Number Integer
+data Term = Word Name | Quoted AST | Number Integer | Str String
     deriving (Eq, Show)
 type Name = String
 type AST = [Term]
@@ -51,6 +52,7 @@ prettyAST = intercalate " " . map prettyTerm
         prettyTerm (Word n) = n
         prettyTerm (Number n) = show n
         prettyTerm (Quoted a) = "[" ++ prettyAST a ++ "]"
+        prettyTerm (Str s) = "\"" ++ s ++ "\""
 
 parse :: String -> Either String AST
 parse = first show . P.parse (ast <* eof) "parsing silly-joy"
@@ -59,7 +61,15 @@ ast :: Parsec String st AST
 ast = spaces >> term `sepEndBy` spaces
 
 term :: Parsec String st Term
-term = number <|> word <|> quoted
+term = number <|> word <|> quoted <|> str
+
+str :: Parsec String st Term
+str = Str <$> between (char '"') (char '"') (many quoted_char)
+    where
+        quoted_char = space
+               <|> alphaNum
+               <|> oneOf ['+', '=', '<', '>', '!', '-', '*']
+               <|> (try (char '\\') >> char '"')
 
 word :: Parsec String st Term
 word = do
@@ -81,19 +91,20 @@ quoted :: Parsec String st Term
 quoted = Quoted <$> between (char '[') (char ']') ast
 
 
-data Value = P Program AST | I Integer | B Bool
+data Value = P Program AST | I Integer | B Bool | S String
 
 instance Eq Value where
     (P _ a) == (P _ a') | a == a' = True
     (I i) == (I i') | i == i' = True
     (B b) == (B b') | b == b' = True
+    (S s) == (S s') | s == s' = True
     _ == _ = False
 
 instance Show Value where
     show (I i) = show i
     show (B b) = show b
     show (P _ s) = "[" ++ prettyAST s ++ "]"
-
+    show (S s) = "\"" ++ s ++ "\""
 
 data StateEffect v = Push Value v
                    | Pop (Value -> v)
@@ -201,6 +212,13 @@ initialDictionary = M.fromList
         b <- pop
         (_, b') <- castProgram' b
         push $ P (push b >> a) ([Quoted b'] ++ a'))
+    , ("strlen", do
+        s <- pop >>= castStr
+        push $ I (toInteger $ length s))
+    , ("strcat", do
+        s <- pop >>= castStr
+        s' <- pop >>= castStr
+        push $ S (s' ++ s))
     ]
 
 initialState :: State
@@ -225,11 +243,16 @@ castBool :: Member (Exc Error) e => Value -> Eff e Bool
 castBool (B b) = return b
 castBool _ = throwExc TypeMismatch
 
+castStr :: Member (Exc Error) e => Value -> Eff e String
+castStr (S s) = return s
+castStr _ = throwExc TypeMismatch
+
 interpret :: AST -> Program
 interpret [] = return ()
 interpret ((Word n):ts) = lookup n >>= id >> interpret ts
 interpret ((Quoted a):ts) = push (P (interpret a) a) >> interpret ts
 interpret ((Number n):ts) = push (I n) >> interpret ts
+interpret ((Str s):ts) = push (S s) >> interpret ts
 
 runStateEffect :: Member (Exc Error) e => State -> Eff (StateEffect :> e) v
                -> Eff e (State, v)
