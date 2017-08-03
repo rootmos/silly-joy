@@ -4,6 +4,7 @@ import Test.Hspec
 import Control.Exception
 
 import Lib
+import Parser
 
 main :: IO ()
 main = hspec $ do

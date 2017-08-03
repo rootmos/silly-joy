@@ -13,7 +13,7 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Lib
+  exposed-modules:     Lib, Parser
   build-depends:       base >= 4.7 && < 5
                      , parsec >= 3.1.11
                      , containers >= 0.5.7.1

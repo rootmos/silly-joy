@@ -1,8 +1,5 @@
-{-# LANGUAGE FlexibleContexts, DeriveFunctor, TypeOperators, TypeFamilies #-}
-module Lib ( parse
-           , Term (..)
-           , AST
-           , State (..)
+{-# LANGUAGE FlexibleContexts, DeriveFunctor, TypeOperators, TypeFamilies, TypeSynonymInstances #-}
+module Lib ( State (..)
            , simulateUnsafe
            , expect
            , send
@@ -11,23 +8,6 @@ module Lib ( parse
            , repl
            ) where
 
-import Text.Parsec ( many1
-                   , alphaNum
-                   , Parsec
-                   , (<|>)
-                   , between
-                   , spaces
-                   , space
-                   , optional
-                   , sepEndBy
-                   , many
-                   , eof
-                   , oneOf
-                   , try
-                   )
-import qualified Text.Parsec as P
-import Text.Parsec.Char ( char, letter, digit )
-import Data.Bifunctor
 import qualified Data.Map.Lazy as M
 import Control.Eff hiding ( send, run )
 import qualified Control.Eff as E
@@ -42,90 +22,18 @@ import Data.List (intercalate)
 import Data.OpenUnion (weaken)
 import System.IO (hSetBuffering, BufferMode(NoBuffering), stdout)
 import Text.Read (readMaybe)
+import Data.Monoid
 
-data Term = Word Name
-          | Quoted AST
-          | Number Integer
-          | Str String
-          | Binding Name AST
-    deriving (Eq, Show)
-type Name = String
-type AST = [Term]
-
-prettyAST :: AST -> String
-prettyAST = intercalate " " . map prettyTerm
-    where
-        prettyTerm (Word n) = n
-        prettyTerm (Number n) = show n
-        prettyTerm (Quoted a) = "[" ++ prettyAST a ++ "]"
-        prettyTerm (Str s) = "\"" ++ s ++ "\""
-        prettyTerm (Binding n a) = n ++ " := " ++ prettyAST a ++ ";"
-
-parse :: String -> Either String AST
-parse = first show . P.parse (ast <* eof) "parsing silly-joy"
-
-ast :: Parsec String st AST
-ast = spaces >> (try binding <|> term) `sepEndBy` separator
-    where
-        separator = optional spaces >> optional (char ';') >> spaces
-
-binding :: Parsec String st Term
-binding = do
-    n <- name
-    _ <- spaces
-    _ <- char ':'
-    _ <- char '='
-    _ <- spaces
-    a <- term `sepEndBy` spaces
-    return $ Binding n a
-    where
-        name = many1 $ alphaNum
-               <|> oneOf ['+', '=', '<', '>', '!', '-', '*', '_']
-
-term :: Parsec String st Term
-term = number <|> word <|> quoted <|> str
-
-str :: Parsec String st Term
-str = Str <$> between (char '"') (char '"') (many quoted_char)
-    where
-        quoted_char = space
-               <|> alphaNum
-               <|> oneOf ['+', '=', '<', '>', '!', '-', '*', '_']
-               <|> (try (char '\\') >> char '"')
-
-word :: Parsec String st Term
-word = do
-    l <- letter <|> symbol
-    ans <- many (alphaNum <|> symbol)
-    return . Word $ l : ans
-        where symbol = oneOf ['+', '=', '<', '>', '!', '-', '*', '_']
-
-number :: Parsec String st Term
-number = positive <|> try negative
-    where
-        positive = Number . read <$> many1 digit
-        negative = do
-            _ <- char '-'
-            n <- many1 digit
-            return . Number $ -1 * read n
-
-quoted :: Parsec String st Term
-quoted = Quoted <$> between (char '[') (char ']') ast
+import Parser
 
 
-data Value = P Program AST | I Integer | B Bool | S String
-
-instance Eq Value where
-    (P _ a) == (P _ a') | a == a' = True
-    (I i) == (I i') | i == i' = True
-    (B b) == (B b') | b == b' = True
-    (S s) == (S s') | s == s' = True
-    _ == _ = False
+data Value = P Program | I Integer | B Bool | S String
+    deriving ( Eq )
 
 instance Show Value where
     show (I i) = show i
     show (B b) = show b
-    show (P _ s) = "[" ++ prettyAST s ++ "]"
+    show (P p) = "[" ++ show p ++ "]"
     show (S s) = "\"" ++ s ++ "\""
 
 data StateEffect v = Push Value v
@@ -150,7 +58,23 @@ data Error = Undefined Name
 
 instance Exception Error
 
-type Program = Eff (StateEffect :> (Exc Error) :> RealWorldEffect :> Void) ()
+data Program = MkProgram { unProgram :: Eff (StateEffect
+                                                :> (Exc Error)
+                                                :> RealWorldEffect :> Void) ()
+                         , ast :: AST
+                         }
+
+instance Monoid Program where
+    mempty = MkProgram { unProgram = return (), ast = [] }
+    p `mappend` q = MkProgram { unProgram = unProgram p >> unProgram q
+                              , ast = ast p ++ ast q
+                              }
+
+instance Eq Program where
+    p == p' = ast p == ast p'
+
+instance Show Program where
+    show = prettyAST . ast
 
 data State = State { stack :: [Value]
                    , dict :: M.Map Name Program
@@ -191,77 +115,81 @@ input = E.send . inj $ Input id
 
 initialDictionary :: M.Map Name Program
 initialDictionary = M.fromList
-    [ ("pop", do
+    [ mk "pop" $ do
         _ <- pop
-        return ())
-    , ("i", do
-        pop >>= castProgram >>= id)
-    , ("dup", do
+        return ()
+    , mk "i" $ do
+        pop >>= castProgram >>= unProgram
+    , mk "dup" $ do
         v <- pop
         push v
-        push v)
-    , ("dip", do
+        push v
+    , mk "dip" $ do
         p <- pop
         v <- pop
-        castProgram p >>= id
-        push v)
-    , ("+", do a <- pop >>= castInt; b <- pop >>= castInt; push (I $ b + a))
-    , ("-", do a <- pop >>= castInt; b <- pop >>= castInt; push (I $ b - a))
-    , ("*", do a <- pop >>= castInt; b <- pop >>= castInt; push (I $ b * a))
-    , ("<", do a <- pop >>= castInt; b <- pop >>= castInt; push (B $ b < a))
-    , (">", do a <- pop >>= castInt; b <- pop >>= castInt; push (B $ b > a))
-    , ("<=", do a <- pop >>= castInt; b <- pop >>= castInt; push (B $ b <= a))
-    , (">=", do a <- pop >>= castInt; b <- pop >>= castInt; push (B $ b >= a))
-    , ("=", do a <- pop >>= castInt; b <- pop >>= castInt; push (B $ b == a))
-    , ("!=", do a <- pop >>= castInt; b <- pop >>= castInt; push (B $ b /= a))
-    , ("print", pop >>= print . show)
-    , ("ifte", do
+        castProgram p >>= unProgram
+        push v
+    , mk "+" $ do a <- pop >>= castInt; b <- pop >>= castInt; push (I $ b + a)
+    , mk "-" $ do a <- pop >>= castInt; b <- pop >>= castInt; push (I $ b - a)
+    , mk "*" $ do a <- pop >>= castInt; b <- pop >>= castInt; push (I $ b * a)
+    , mk "<" $ do a <- pop >>= castInt; b <- pop >>= castInt; push (B $ b < a)
+    , mk ">" $ do a <- pop >>= castInt; b <- pop >>= castInt; push (B $ b > a)
+    , mk "<=" $ do a <- pop >>= castInt; b <- pop >>= castInt; push (B $ b <= a)
+    , mk ">=" $ do a <- pop >>= castInt; b <- pop >>= castInt; push (B $ b >= a)
+    , mk "=" $ do a <- pop >>= castInt; b <- pop >>= castInt; push (B $ b == a)
+    , mk "!=" $ do a <- pop >>= castInt; b <- pop >>= castInt; push (B $ b /= a)
+    , mk "print" $ pop >>= print . show
+    , mk "ifte" $ do
         false <- pop
         true <- pop
         cond <- pop
 
-        c <- local (castProgram cond >>= id >> pop >>= castBool)
+        c <- local (castProgram cond >>= unProgram >> pop >>= castBool)
         case c of
-          True -> castProgram true >>= id
-          False -> castProgram false >>= id)
-    , ("I", do
+          True -> castProgram true >>= unProgram
+          False -> castProgram false >>= unProgram
+    , mk "I" $ do
         p <- pop >>= castProgram
-        v <- local (p >> pop)
-        push v)
-    , ("swap", do a <- pop; b <- pop; push a; push b)
-    , ("concat", do
-        (a, a') <- pop >>= castProgram'
-        (b, b') <- pop >>= castProgram'
-        push $ P (b >> a) (b' ++ a'))
-    , ("b", do
+        v <- local (unProgram p >> pop)
+        push v
+    , mk "swap" $ do a <- pop; b <- pop; push a; push b
+    , mk "concat" $ do
         a <- pop >>= castProgram
         b <- pop >>= castProgram
-        b >> a)
-    , ("cons", do
-        (a, a') <- pop >>= castProgram'
+        push $ P (b <> a)
+    , mk "b" $ do
+        a <- pop >>= castProgram
+        b <- pop >>= castProgram
+        (unProgram b) >> (unProgram a)
+    , mk "cons" $ do
+        a <- pop >>= castProgram
         b <- pop
-        (_, b') <- castProgram' b
-        push $ P (push b >> a) ([Quoted b'] ++ a'))
-    , ("strlen", do
+        bp <- castProgram b
+        push $ P (MkProgram { unProgram = push b >> unProgram a
+                            , ast = [Quoted $ ast bp] ++ ast a
+                            })
+    , mk "strlen" $ do
         s <- pop >>= castStr
-        push $ I (toInteger $ length s))
-    , ("strcat", do
+        push $ I (toInteger $ length s)
+    , mk "strcat" $ do
         s <- pop >>= castStr
         s' <- pop >>= castStr
-        push $ S (s' ++ s))
-    , ("bind", do
+        push $ S (s' ++ s)
+    , mk "bind" $ do
         n <- pop >>= castStr
         p <- pop >>= castProgram
-        bind n p)
-    , ("read_line", do
+        bind n p
+    , mk "read_line" $ do
         s <- input
-        push $ S s)
-    , ("read_int", do
+        push $ S s
+    , mk "read_int" $ do
         s <- input
         case readMaybe s of
           Just i -> push $ I i
-          Nothing -> throwExc $ UnparseableAsNumber s)
+          Nothing -> throwExc $ UnparseableAsNumber s
     ]
+        where
+            mk n p = (n, MkProgram { unProgram = p, ast = [Word n] })
 
 initialState :: State
 initialState = State { stack = []
@@ -270,12 +198,8 @@ initialState = State { stack = []
                      }
 
 castProgram :: Member (Exc Error) e => Value -> Eff e Program
-castProgram (P p _) = return p
+castProgram (P p) = return p
 castProgram _ = throwExc TypeMismatch
-
-castProgram' :: Member (Exc Error) e => Value -> Eff e (Program, AST)
-castProgram' (P p a) = return (p, a)
-castProgram' _ = throwExc TypeMismatch
 
 castInt :: Member (Exc Error) e => Value -> Eff e Integer
 castInt (I i) = return i
@@ -290,16 +214,30 @@ castStr (S s) = return s
 castStr _ = throwExc TypeMismatch
 
 interpret :: AST -> Program
-interpret [] = return ()
-interpret ((Word n):ts) = lookup n >>= id >> interpret ts
-interpret ((Quoted a):ts) = push (P (interpret a) a) >> interpret ts
-interpret ((Number n):ts) = push (I n) >> interpret ts
-interpret ((Str s):ts) = push (S s) >> interpret ts
-interpret ((Binding n a):ts) = do
-    push $ P (interpret a) a
-    push $ S n
-    lookup "bind" >>= id
-    interpret ts
+interpret [] = mempty
+interpret (a@(Word n):ts) =
+    let p = MkProgram { unProgram = lookup n >>= unProgram
+                      , ast = [a]
+                      } in
+    p <> interpret ts
+interpret (a@(Quoted q):ts) =
+    let p = MkProgram { unProgram = push (P $ interpret q)
+                      , ast = [a]
+                      } in
+    p <> interpret ts
+interpret (a@(Number n):ts) =
+    let p = MkProgram { unProgram = push (I n), ast = [a] } in
+    p <> interpret ts
+interpret (a@(Str s):ts) =
+    let p = MkProgram { unProgram = push (S s), ast = [a] } in
+    p <> interpret ts
+interpret (a@(Binding n b):ts) =
+    let p = MkProgram { unProgram = do
+                            push $ P (interpret b)
+                            push $ S n
+                            lookup "bind" >>= unProgram
+                      , ast = [a] } in
+    p <> interpret ts
 
 runStateEffect :: Member (Exc Error) e => State -> Eff (StateEffect :> e) v
                -> Eff e (State, v)
@@ -374,8 +312,8 @@ simulateUnsafe s exs =
     let parsed = either error id $ parse s in
     let p = interpret parsed in
     let (st, ()) = either throw id . E.run .
-                    simulateRealWorld exs . runExc $
-                        runStateEffect initialState p in
+                    simulateRealWorld exs . runExc .
+                        runStateEffect initialState . unProgram $ p in
         st
 
 runRealWorld :: Eff (RealWorldEffect :> e) v -> Eff (Lift IO :> e) v
@@ -414,7 +352,8 @@ repl = do
             case parse raw of
               Right parsed -> do
                   let p = interpret parsed
-                  x <- runLift . runRealWorld . runExc $ runStateEffect s p
+                  x <- runLift . runRealWorld . runExc . runStateEffect s .
+                      unProgram $ p
                   case x of
                     Right (s', ()) -> loop s'
                     Left e -> (putStrLn . show $ e) >> loop s
