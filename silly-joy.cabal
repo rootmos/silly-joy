@@ -1,14 +1,12 @@
 name:                silly-joy
-version:             0.1.0.0
--- synopsis:
--- description:
-homepage:            https://github.com/githubuser/silly-joy#readme
+version:             0.0.1
+homepage:            https://github.com/rootmos/silly-joy#readme
 license:             BSD3
 license-file:        LICENSE
-author:              Author name here
-maintainer:          example@example.com
-copyright:           2017 Author name here
-category:            Web
+author:              Gustav Behm
+maintainer:          gustav.behm@gmail.com
+copyright:           2017 Gustav Behm
+category:            language
 build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
@@ -44,4 +42,4 @@ test-suite silly-joy-test
 
 source-repository head
   type:     git
-  location: https://github.com/githubuser/silly-joy
+  location: https://github.com/rootmos/silly-joy

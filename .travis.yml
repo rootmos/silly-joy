@@ -1,0 +1,22 @@
+sudo: required
+
+services:
+  - docker
+
+before_install:
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+  - sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+  - sudo apt-get update
+  - sudo apt-get -y install docker-ce
+
+env:
+  - IMAGE=rootmos/silly-joy:$TRAVIS_BRANCH-$TRAVIS_BUILD_NUMBER-$TRAVIS_COMMIT
+
+script:
+  - docker build -t $IMAGE .
+  - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
+  - docker push $IMAGE
+  - if [ "$TRAVIS_BRANCH" == "master" ]; then
+      docker tag $IMAGE rootmos/silly-joy:latest;
+      docker push rootmos/silly-joy:latest;
+    fi
