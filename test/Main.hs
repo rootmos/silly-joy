@@ -3,8 +3,9 @@ module Main where
 import Test.Hspec
 import Control.Exception
 
-import Lib
 import Parser
+import Meaning
+import Runner
 
 main :: IO ()
 main = hspec $ do

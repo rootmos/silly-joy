@@ -92,4 +92,3 @@ number = positive <|> try negative
 
 quoted :: Parsec String st Term
 quoted = Quoted <$> between (char '[') (char ']') ast
-

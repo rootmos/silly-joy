@@ -1,6 +1,6 @@
 module Main where
 
-import Lib (repl)
+import Runner (repl)
 
 main :: IO ()
 main = repl
