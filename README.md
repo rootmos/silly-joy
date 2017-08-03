@@ -16,7 +16,7 @@ Here are some resources:
 
 ```
 > 1 2 +
-> :st
+> :stack
 3
 > 12 *
 > print
@@ -25,8 +25,10 @@ Here are some resources:
 > 10 fact
 > :st
 3628800
-> ["foo" "bar" strcat] [strlen] b print
+> ["foo" "bar" strcat] [strlen] b
+> dup print
 6
 > 1 swap - print
 -5
+>
 ```

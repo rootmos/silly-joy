@@ -1,0 +1,57 @@
+#!/usr/bin/env expect
+spawn [lindex $argv 0]
+
+set timeout 5
+
+set prompt {> }
+
+expect -re $prompt
+send "1 2 +\r"
+
+expect -re $prompt
+send ":stack\r"
+expect {
+    "3" {}
+    timeout { exit 1 }
+}
+
+expect -re $prompt
+send "12 *\r"
+
+expect -re $prompt
+send "print\r"
+expect {
+    "36" {}
+    timeout { exit 1 }
+}
+
+expect -re $prompt
+send "fact := \[\[pop 0 =\] \[pop pop 1\] \[ \[dup 1 -\] dip dup i *\] ifte\] dup i\r"
+
+expect -re $prompt
+send "10 fact\r"
+
+expect -re $prompt
+send ":st\r"
+expect {
+    "3628800" {}
+    timeout { exit 1 }
+}
+
+expect -re $prompt
+send "\[\"foo\" \"bar\" strcat\] \[strlen\] b\r"
+
+
+expect -re $prompt
+send "dup print\r"
+expect {
+    "6" {}
+    timeout { exit 1 }
+}
+
+expect -re $prompt
+send "1 swap - print\r"
+expect {
+    -exact "-5" {}
+    timeout { exit 1 }
+}
