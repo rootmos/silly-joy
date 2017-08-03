@@ -14,11 +14,9 @@ env:
 
 script:
   - docker build -t $IMAGE .
-
-after_success:
-  - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
-    docker push $IMAGE;
-    if [ "$TRAVIS_BRANCH" == "master" ]; then
+  - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
+  - docker push $IMAGE
+  - if [ "$TRAVIS_BRANCH" == "master" ]; then
       docker tag $IMAGE rootmos/silly-joy:latest;
       docker push rootmos/silly-joy:latest;
     fi
