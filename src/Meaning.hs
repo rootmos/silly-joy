@@ -17,6 +17,7 @@ import Data.Void
 import Prelude hiding ( lookup, print )
 import Text.Read (readMaybe)
 import Data.Monoid
+import Data.List (intercalate)
 
 import Parser
 
@@ -41,13 +42,14 @@ instance Show Program where
 
 -- Value
 
-data Value = P Program | I Integer | B Bool | S String
+data Value = A [Value] | P Program | I Integer | B Bool | S String
     deriving ( Eq )
 
 instance Show Value where
     show (I i) = show i
     show (B b) = show b
-    show (P p) = "[" ++ show p ++ "]"
+    show (A xs) = "[" ++ (intercalate " " $ map show xs) ++ "]"
+    show (P p) = show p
     show (S s) = "\"" ++ s ++ "\""
 
 data Error = Undefined Name
@@ -55,6 +57,7 @@ data Error = Undefined Name
            | PoppingEmptyStateStack
            | TypeMismatch
            | UnparseableAsNumber String
+           | EmptyAggregate
     deriving ( Show, Eq )
 
 instance Exception Error
@@ -147,20 +150,37 @@ primitives = M.fromList
         push v
     , mk "swap" $ do a <- pop; b <- pop; push a; push b
     , mk "concat" $ do
-        a <- pop >>= castProgram
-        b <- pop >>= castProgram
-        push $ P (b <> a)
+        a <- pop >>= castAggregate
+        b <- pop >>= castAggregate
+        push $ A (b <> a)
     , mk "b" $ do
         a <- pop >>= castProgram
         b <- pop >>= castProgram
         (unProgram b) >> (unProgram a)
+    , mk "size" $ do
+        a <- pop >>= castAggregate
+        push $ I (toInteger $ length a)
     , mk "cons" $ do
-        a <- pop >>= castProgram
+        a <- pop >>= castAggregate
         b <- pop
-        bp <- castProgram b
-        push $ P (MkProgram { unProgram = push b >> unProgram a
-                            , ast = [Quoted $ ast bp] ++ ast a
-                            })
+        push $ A (b : a)
+    , mk "first" $ do
+        ag <- pop >>= castAggregate
+        case ag of
+          a:_ -> castProgram a >>= unProgram
+          [] -> throwExc EmptyAggregate
+    , mk "rest" $ do
+        ag <- pop >>= castAggregate
+        case ag of
+          _:tl -> push $ A tl
+          [] -> throwExc EmptyAggregate
+    , mk "uncons" $ do
+        ag <- pop >>= castAggregate
+        case ag of
+          a:tl -> do
+              castProgram a >>= unProgram
+              push $ A tl
+          [] -> throwExc EmptyAggregate
     , mk "strlen" $ do
         s <- pop >>= castStr
         push $ I (toInteger $ length s)
@@ -186,7 +206,25 @@ primitives = M.fromList
 
             castProgram :: Member (Exc Error) e => Value -> Eff e Program
             castProgram (P p) = return p
+            castProgram (A xs) =
+                sequence (map weakCastProgram xs) >>= return . mconcat
+                    where
+                        weakCastProgram :: Member (Exc Error) e
+                                        => Value -> Eff e Program
+                        weakCastProgram (I n) = return $
+                            MkProgram { unProgram = push (I n)
+                                      , ast = [Number n]
+                                      }
+                        weakCastProgram (S s) = return $
+                            MkProgram { unProgram = push (S s)
+                                      , ast = [Str s]
+                                      }
+                        weakCastProgram v = castProgram v
             castProgram _ = throwExc TypeMismatch
+
+            castAggregate :: Member (Exc Error) e => Value -> Eff e [Value]
+            castAggregate (A xs) = return xs
+            castAggregate _ = throwExc TypeMismatch
 
             castInt :: Member (Exc Error) e => Value -> Eff e Integer
             castInt (I i) = return i
@@ -211,8 +249,9 @@ meaning (a@(Word n):ts) =
                       , ast = [a]
                       } in
     p <> meaning ts
-meaning (a@(Quoted q):ts) =
-    let p = MkProgram { unProgram = push (P $ meaning q)
+meaning (a@(Quoted as):ts) =
+    let p = MkProgram { unProgram = do
+                            push (A $ map (\t -> P . meaning $ [t]) as)
                       , ast = [a]
                       } in
     p <> meaning ts

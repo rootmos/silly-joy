@@ -241,8 +241,62 @@ spec_simulate =
         it "should simulate: [1] [2] b" $ do
             stack (simulateUnsafe "[1] [2] b" []) `shouldBe` [I 2, I 1]
 
-        it "should simulate: [1] [i] cons i" $ do
-            stack (simulateUnsafe "[1] [i] cons i" []) `shouldBe` [I 1]
+
+        it "should simulate: 1 [2] cons i" $ do
+            stack (simulateUnsafe "1 [2] cons i" []) `shouldBe` [I 2, I 1]
+
+
+        it "should simulate: [1] first" $ do
+            stack (simulateUnsafe "[1] first" []) `shouldBe` [I 1]
+
+        it "should simulate: [1 2] first" $ do
+            stack (simulateUnsafe "[1 2] first" []) `shouldBe` [I 1]
+
+        it "should simulate: [] first" $ do
+            evaluate (simulateUnsafe "[] first" [])
+                `shouldThrow` (== EmptyAggregate)
+
+        it "should simulate: [] size" $ do
+            stack (simulateUnsafe "[] size" []) `shouldBe` [I 0]
+
+        it "should simulate: [1 2] size" $ do
+            stack (simulateUnsafe "[1 2] size" []) `shouldBe` [I 2]
+
+
+        it "should simulate: [] rest" $ do
+            evaluate (simulateUnsafe "[] rest" [])
+                `shouldThrow` (== EmptyAggregate)
+
+        it "should simulate: [1] rest i" $ do
+            stack (simulateUnsafe "[1] rest i" []) `shouldBe` []
+
+        it "should simulate: [1 2] rest i" $ do
+            stack (simulateUnsafe "[1 2] rest i" []) `shouldBe` [I 2]
+
+        it "should simulate: [1 2 3] rest i" $ do
+            stack (simulateUnsafe "[1 2 3] rest i" []) `shouldBe` [I 3, I 2]
+
+
+        it "should simulate: [] uncons" $ do
+            evaluate (simulateUnsafe "[] uncons" [])
+                `shouldThrow` (== EmptyAggregate)
+
+        it "should simulate: [1] uncons size" $ do
+            stack (simulateUnsafe "[1] uncons size" [])
+                `shouldBe` [I 0, I 1]
+
+        it "should simulate: [1] uncons i" $ do
+            stack (simulateUnsafe "[1] uncons i" [])
+                `shouldBe` [I 1]
+
+        it "should simulate: [1 2 3] uncons size" $ do
+            stack (simulateUnsafe "[1 2 3] uncons size" [])
+                `shouldBe` [I 2, I 1]
+
+        it "should simulate: [1 2 3] uncons i" $ do
+            stack (simulateUnsafe "[1 2 3] uncons i" [])
+                `shouldBe` [I 3, I 2, I 1]
+
 
         it "should simulate factorial example" $ do
             stack (flip simulateUnsafe [] $
