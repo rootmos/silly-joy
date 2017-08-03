@@ -14,7 +14,6 @@ Here are some resources:
 * Over at [http://www.concatenative.org](http://www.concatenative.org/wiki/view/Joy)
 
 ## Try it out!
------
 Simplest way to try it out is by using Docker:
 ```
 docker run -it rootmos/silly-joy
