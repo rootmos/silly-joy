@@ -1,6 +1,14 @@
 .PHONY: repl
-repl:
-	stack build && rlwrap stack exec silly-joy-exe
+repl: build
+	stack exec silly-joy-exe
+
+.PHONY: tui
+tui: build
+	stack exec silly-joy-exe -- --tui
+
+.PHONY: build
+build:
+	stack build
 
 .PHONY: test
 test:

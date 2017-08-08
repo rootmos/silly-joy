@@ -13,7 +13,7 @@ ADD app app
 ADD README.md .
 ADD LICENSE .
 
-RUN stack setup 
+RUN stack setup
 RUN stack --local-bin-path /sbin install --test
 
 RUN apt-get update && apt-get install -y expect
@@ -23,4 +23,5 @@ RUN ./repl.expect /sbin/silly-joy-exe
 FROM alpine:3.3
 WORKDIR /root
 COPY --from=builder /sbin/silly-joy-exe .
-CMD ["./silly-joy-exe"]
+RUN apk update && apk add ncurses-terminfo-base
+ENTRYPOINT ["./silly-joy-exe"]

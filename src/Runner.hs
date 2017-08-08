@@ -3,7 +3,9 @@ module Runner ( State (..)
               , simulateUnsafe
               , expect
               , send
-              , repl
+              , runIO
+              , runInputT
+              , initialState
               ) where
 
 import qualified Data.Map.Lazy as M
@@ -13,14 +15,14 @@ import Control.Eff.Exception
 import Control.Eff.Lift
 import Control.Exception ( Exception, throw )
 import Prelude hiding ( lookup, print )
-import Data.Foldable (traverse_)
 import Data.Typeable
 import Data.List (intercalate)
 import Data.OpenUnion (weaken)
-import System.IO (hSetBuffering, BufferMode(NoBuffering), stdout)
 
 import Parser
 import Meaning
+
+import System.Console.Haskeline (InputT, outputStrLn, getInputLine)
 
 initialState :: State
 initialState = State { stack = []
@@ -119,13 +121,31 @@ simulateUnsafe s exs =
                         runStateEffect initialState . unProgram $ p in
         st
 
-runRealWorld :: Eff (RealWorldEffect :> e) v -> Eff (Lift IO :> e) v
-runRealWorld = freeMap return (\u -> transform u runRealWorld handle)
+runRealWorldIO :: Eff (RealWorldEffect :> e) v
+               -> Eff (Lift IO :> e) v
+runRealWorldIO = freeMap return $ \u ->
+    transform u runRealWorldIO handle
     where
         handle :: RealWorldEffect (Eff (RealWorldEffect :> e) w)
                -> Eff (Lift IO :> e) w
-        handle (Print s k) = lift (putStrLn s) >> runRealWorld k
-        handle (Input k) = lift getLine >>= runRealWorld . k
+        handle (Print s k) = lift (putStrLn s) >> runRealWorldIO k
+        handle (Input k) = lift getLine >>= runRealWorldIO . k
+
+runRealWorldInputT :: Eff (RealWorldEffect :> e) v
+                   -> Eff (Lift (InputT IO) :> e) v
+runRealWorldInputT = freeMap return $ \u ->
+    transform u runRealWorldInputT handle
+    where
+        handle :: RealWorldEffect (Eff (RealWorldEffect :> e) w)
+               -> Eff (Lift (InputT IO) :> e) w
+        handle (Print s k) = do
+            lift (outputStrLn s)
+            runRealWorldInputT k
+        handle (Input k) = do
+            minput <- lift (getInputLine "input> ")
+            case minput of
+              Just input -> runRealWorldInputT . k $ input
+              Nothing -> undefined -- TODO: handle properly
 
 transform :: (Typeable t, Typeable s, Functor s)
           => Union (t :> r) v -- ^ Request
@@ -136,28 +156,10 @@ transform u loop h = either passOn h $ decomp u
     where
         passOn u' = E.send (weaken u') >>= loop
 
-repl :: IO ()
-repl = do
-    hSetBuffering stdout NoBuffering
-    loop initialState
-    where
-        loop s = do
-            putStr "> "
-            raw <- getLine
-            case raw of
-              ':' : 's' : _ -> dumpStack s
-              _ -> doParsing raw s
+runIO :: State -> Program -> IO (Either Error (State, ()))
+runIO s = runLift . runRealWorldIO . runExc
+                  . runStateEffect s . unProgram
 
-        dumpStack s =
-            traverse_ (putStrLn . show) (stack s) >> loop s
-
-        doParsing raw s =
-            case parse raw of
-              Right parsed -> do
-                  let p = meaning parsed
-                  x <- runLift . runRealWorld . runExc . runStateEffect s .
-                      unProgram $ p
-                  case x of
-                    Right (s', ()) -> loop s'
-                    Left e -> (putStrLn . show $ e) >> loop s
-              Left e -> putStrLn e >> loop s
+runInputT :: State -> Program -> InputT IO (Either Error (State, ()))
+runInputT s = runLift . runRealWorldInputT . runExc
+                      . runStateEffect s . unProgram
