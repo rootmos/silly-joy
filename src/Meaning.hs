@@ -141,6 +141,9 @@ primitives = M.fromList
     , mk ">=" $ do a <- pop >>= castInt; b <- pop >>= castInt; push (B $ b >= a)
     , mk "=" $ do a <- pop >>= castInt; b <- pop >>= castInt; push (B $ b == a)
     , mk "!=" $ do a <- pop >>= castInt; b <- pop >>= castInt; push (B $ b /= a)
+    , mk "null" $ do a <- pop >>= castInt; push (B $ a == 0)
+    , mk "succ" $ do a <- pop >>= castInt; push (I $ succ a)
+    , mk "pred" $ do a <- pop >>= castInt; push (I $ pred a)
     , mk "print" $ pop >>= print . show
     , mk "ifte" $ do
         false <- pop
@@ -228,6 +231,25 @@ primitives = M.fromList
         push z
         push y
         push x
+    , mk "primrec" $ do
+        c <- pop >>= castProgram
+        i <- pop >>= castProgram
+        let loop = do
+                x <- peek >>= castInt
+                case x of
+                  0 -> pop >> unProgram i
+                  n -> push (I $ n - 1) >> loop >> unProgram c
+        loop
+    , mk "linrec" $ do
+        r2 <- pop >>= castProgram
+        r1 <- pop >>= castProgram
+        t <- pop >>= castProgram
+        p <- pop >>= castProgram
+        let loop = do
+                b <- local (unProgram p >> pop >>= castBool)
+                if b then unProgram t
+                     else unProgram r1 >> loop >> unProgram r2
+        loop
     ]
         where
             mk n p = (n, MkProgram { unProgram = p, ast = [Word n] })

@@ -222,6 +222,16 @@ spec_simulate =
             stack (simulateUnsafe "1 2 [=] [7] [8] ifte" [])
                 `shouldBe` [I 8, I 2, I 1]
 
+        it "should simulate: 0 null" $ do
+            stack (simulateUnsafe "0 null" []) `shouldBe` [B True]
+        it "should simulate: 1 null" $ do
+            stack (simulateUnsafe "1 null" []) `shouldBe` [B False]
+
+        it "should simulate: 0 succ" $ do
+            stack (simulateUnsafe "0 succ" []) `shouldBe` [I 1]
+        it "should simulate: 1 pred" $ do
+            stack (simulateUnsafe "1 pred" []) `shouldBe` [I 0]
+
         it "should simulate: 1 2 swap" $ do
             stack (simulateUnsafe "1 2 swap" []) `shouldBe` [I 1, I 2]
 
@@ -384,3 +394,23 @@ spec_simulate =
         it "should simulate: [1 2] x rolldown i" $ do
             stack (simulateUnsafe "[1 2] x rolldown i" [])
                 `shouldBe` [I 2, I 1, I 2, I 1]
+
+        it "should simulate: 0 [7] [] primrec" $ do
+            stack (simulateUnsafe "0 [7] [] primrec" [])
+                `shouldBe` [I 7]
+
+        it "should simulate: 5 [1] [*] primrec" $ do
+            stack (simulateUnsafe "5 [1] [*] primrec" [])
+                `shouldBe` [I 120]
+
+        it "should simulate: 10 [0] [+] primrec" $ do
+            stack (simulateUnsafe "10 [0] [+] primrec" [])
+                `shouldBe` [I 55]
+
+        it "should simulate: 0 [null] [succ] [dup pred] [*] linrec" $ do
+            stack (simulateUnsafe "0 [null] [succ] [dup pred] [*] linrec" [])
+                `shouldBe` [I 1]
+
+        it "should simulate: 5 [null] [succ] [dup pred] [*] linrec" $ do
+            stack (simulateUnsafe "5 [null] [succ] [dup pred] [*] linrec" [])
+                `shouldBe` [I 120]
