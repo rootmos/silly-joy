@@ -124,8 +124,7 @@ primitives = M.fromList
     , mk "x" $ do
         peek >>= castProgram >>= unProgram
     , mk "dup" $ do
-        v <- pop
-        push v
+        v <- peek
         push v
     , mk "dip" $ do
         p <- pop
