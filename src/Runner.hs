@@ -54,9 +54,13 @@ runStateEffect st = freeMap (\x -> return (st, x))
 
         handle (s@State { stack = v : stk }) (Pop k) =
             runStateEffect (s { stack = stk }) (k v)
-
         handle (State { stack = [] }) (Pop _) =
             throwExc PoppingEmptyStack
+
+        handle (s@State { stack = v : _ }) (Peek k) =
+            runStateEffect s (k v)
+        handle (State { stack = [] }) (Peek _) =
+            throwExc PeekingEmptyStack
 
         handle (s@State { dict = d }) (Lookup n k) =
             case M.lookup n d of

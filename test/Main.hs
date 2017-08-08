@@ -329,9 +329,9 @@ spec_simulate =
             stack (simulateUnsafe "[2] \"bind\" bind bind" [])
                 `shouldBe` [I 2]
 
-        it "should simulate: [[1] \"x\" bind x] I x" $ do
-            evaluate (simulateUnsafe "[[1] \"x\" bind x] I x" [])
-                `shouldThrow` (== Undefined "x")
+        it "should simulate: [[1] \"y\" bind y] I y" $ do
+            evaluate (simulateUnsafe "[[1] \"y\" bind y] I y" [])
+                `shouldThrow` (== Undefined "y")
 
 
         it "should simulate: plus := +; 1 2 plus" $ do
@@ -346,9 +346,9 @@ spec_simulate =
             stack (simulateUnsafe "bind := 2; bind" [])
                 `shouldBe` [I 2]
 
-        it "should simulate: [x := 1; x] I x" $ do
-            evaluate (simulateUnsafe "[x := 1; x] I x" [])
-                `shouldThrow` (== Undefined "x")
+        it "should simulate: [y := 1; y] I y" $ do
+            evaluate (simulateUnsafe "[y := 1; y] I y" [])
+                `shouldThrow` (== Undefined "y")
 
         it "should simulate: [x := 1] i x" $ do
             stack (simulateUnsafe "[x := 1] i x" [])
@@ -368,3 +368,19 @@ spec_simulate =
         it "should simulate: read_line" $ do
             stack (simulateUnsafe "read_line" [send "foo"])
                 `shouldBe` [S "foo"]
+
+        it "should simulate: 1 2 3 rolldown" $ do
+            stack (simulateUnsafe "1 2 3 rolldown" [])
+                `shouldBe` (reverse [I 2, I 3, I 1])
+
+        it "should simulate: 1 2 3 rollup" $ do
+            stack (simulateUnsafe "1 2 3 rollup" [])
+                `shouldBe` (reverse [I 3, I 1, I 2])
+
+        it "should simulate: 1 2 3 rotate" $ do
+            stack (simulateUnsafe "1 2 3 rotate" [])
+                `shouldBe` (reverse [I 3, I 2, I 1])
+
+        it "should simulate: [1 2] x rolldown i" $ do
+            stack (simulateUnsafe "[1 2] x rolldown i" [])
+                `shouldBe` [I 2, I 1, I 2, I 1]

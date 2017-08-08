@@ -54,6 +54,7 @@ instance Show Value where
 
 data Error = Undefined Name
            | PoppingEmptyStack
+           | PeekingEmptyStack
            | PoppingEmptyStateStack
            | TypeMismatch
            | UnparseableAsNumber String
@@ -67,6 +68,7 @@ instance Exception Error
 
 data StateEffect v = Push Value v
                    | Pop (Value -> v)
+                   | Peek (Value -> v)
                    | Lookup Name (Program -> v)
                    | PushState v
                    | PopState v
@@ -81,6 +83,9 @@ push v = E.send . inj $ Push v ()
 
 pop :: Member StateEffect e => Eff e Value
 pop = E.send . inj $ Pop id
+
+peek :: Member StateEffect e => Eff e Value
+peek = E.send . inj $ Peek id
 
 local :: Member StateEffect e => Eff e a -> Eff e a
 local p = do
@@ -116,6 +121,8 @@ primitives = M.fromList
         return ()
     , mk "i" $ do
         pop >>= castProgram >>= unProgram
+    , mk "x" $ do
+        peek >>= castProgram >>= unProgram
     , mk "dup" $ do
         v <- pop
         push v
@@ -200,6 +207,27 @@ primitives = M.fromList
         case readMaybe s of
           Just i -> push $ I i
           Nothing -> throwExc $ UnparseableAsNumber s
+    , mk "rolldown" $ do
+        z <- pop
+        y <- pop
+        x <- pop
+        push y
+        push z
+        push x
+    , mk "rollup" $ do
+        z <- pop
+        y <- pop
+        x <- pop
+        push z
+        push x
+        push y
+    , mk "rotate" $ do
+        z <- pop
+        y <- pop
+        x <- pop
+        push z
+        push y
+        push x
     ]
         where
             mk n p = (n, MkProgram { unProgram = p, ast = [Word n] })
