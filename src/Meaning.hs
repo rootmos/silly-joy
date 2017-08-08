@@ -249,6 +249,10 @@ primitives = M.fromList
                 if b then unProgram t
                      else unProgram r1 >> loop >> unProgram r2
         loop
+    , mk "times" $ do
+        n <- pop >>= castInt
+        p <- pop >>= castProgram
+        sequence_ $ replicate (fromInteger n) $ unProgram p
     ]
         where
             mk n p = (n, MkProgram { unProgram = p, ast = [Word n] })

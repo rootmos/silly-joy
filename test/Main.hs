@@ -414,3 +414,11 @@ spec_simulate =
         it "should simulate: 5 [null] [succ] [dup pred] [*] linrec" $ do
             stack (simulateUnsafe "5 [null] [succ] [dup pred] [*] linrec" [])
                 `shouldBe` [I 120]
+
+        it "should simulate: [1] 0 times" $ do
+            stack (simulateUnsafe "[1] 0 times" [])
+                `shouldBe` []
+
+        it "should simulate: [1] 5 times" $ do
+            stack (simulateUnsafe "[1] 5 times" [])
+                `shouldBe` [I 1, I 1, I 1, I 1, I 1]
