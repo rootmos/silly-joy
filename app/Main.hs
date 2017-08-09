@@ -1,3 +1,4 @@
+{-# LANGUAGE ApplicativeDo #-}
 module Main where
 
 import UI (runRepl, runTui)
@@ -8,10 +9,9 @@ import Data.Semigroup ((<>))
 data Config = MkConfig { tui :: Bool }
 
 config :: Parser Config
-config = MkConfig
-    <$> switch ( long "tui"
-              <> short 't'
-              <> help "Run with terminal UI")
+config = do
+    s <- switch ( long "tui" <> short 't' <> help "Run with terminal UI")
+    return $ MkConfig s
 
 parser :: ParserInfo Config
 parser =
