@@ -18,6 +18,7 @@ library
                      , parsec >= 3.1.11
                      , containers >= 0.5.7.1
                      , extensible-effects >= 1.11.1.0
+                     , natural-transformation >= 0.4
                      , brick >= 0.17.2
                      , haskeline
                      , vty >= 5.15.1

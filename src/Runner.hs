@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, TypeOperators, TypeFamilies #-}
+{-# LANGUAGE FlexibleContexts, TypeOperators, TypeFamilies, Rank2Types #-}
 module Runner ( State (..)
               , simulateUnsafe
               , expect
@@ -18,6 +18,7 @@ import Prelude hiding ( lookup, print )
 import Data.Typeable
 import Data.List (intercalate)
 import Data.OpenUnion (weaken)
+import Control.Natural
 
 import Parser
 import Meaning
@@ -98,7 +99,7 @@ data SimulatedIOError = UnexpectedOutput String
 
 instance Exception SimulatedIOError
 
-simulateRealWorld :: [SimulatedIO] -> Eff (RealWorldEffect :> e) v -> Eff e v
+simulateRealWorld :: [SimulatedIO] -> Eff (RealWorldEffect :> e) ~>  Eff e
 simulateRealWorld expects = freeMap return
     (\u -> handleRelay u (simulateRealWorld expects) (handle expects))
         where
@@ -125,8 +126,7 @@ simulateUnsafe s exs =
                         runStateEffect initialState . unProgram $ p in
         st
 
-runRealWorldIO :: Eff (RealWorldEffect :> e) v
-               -> Eff (Lift IO :> e) v
+runRealWorldIO :: Eff (RealWorldEffect :> e) ~> Eff (Lift IO :> e)
 runRealWorldIO = freeMap return $ \u ->
     transform u runRealWorldIO handle
     where
@@ -135,8 +135,7 @@ runRealWorldIO = freeMap return $ \u ->
         handle (Print s k) = lift (putStrLn s) >> runRealWorldIO k
         handle (Input k) = lift getLine >>= runRealWorldIO . k
 
-runRealWorldInputT :: Eff (RealWorldEffect :> e) v
-                   -> Eff (Lift (InputT IO) :> e) v
+runRealWorldInputT :: Eff (RealWorldEffect :> e) ~> Eff (Lift (InputT IO) :> e)
 runRealWorldInputT = freeMap return $ \u ->
     transform u runRealWorldInputT handle
     where
