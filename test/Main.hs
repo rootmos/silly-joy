@@ -39,6 +39,8 @@ spec_parser =
         it "should parse: +" $ do parse "+" `shouldBe` Right [Word "+"]
         it "should parse: -" $ do parse "-" `shouldBe` Right [Word "-"]
         it "should parse: *" $ do parse "*" `shouldBe` Right [Word "*"]
+        it "should parse: /" $ do parse "/" `shouldBe` Right [Word "/"]
+        it "should parse: %" $ do parse "%" `shouldBe` Right [Word "%"]
         it "should parse: =" $ do parse "=" `shouldBe` Right [Word "="]
         it "should parse: !=" $ do parse "!=" `shouldBe` Right [Word "!="]
         it "should parse: <" $ do parse "<" `shouldBe` Right [Word "<"]
@@ -141,6 +143,14 @@ spec_simulate =
         it "should simulate: 1 +" $ do
             evaluate (simulateUnsafe "1 +" [])
                 `shouldThrow` (== PoppingEmptyStack)
+
+        it "should simulate: 7 2 /" $ do
+            stack (simulateUnsafe "7 2 /" []) `shouldBe` [I 3]
+        it "should simulate: 7 2 %" $ do
+            stack (simulateUnsafe "7 2 %" []) `shouldBe` [I 1]
+        it "should simulate: 7 2 div" $ do
+            stack (simulateUnsafe "7 2 div" []) `shouldBe` [I 1, I 3]
+
         it "should simulate: 7 print" $ do
             let (State { stack = st }) = simulateUnsafe "7 print" [expect "7"]
             st `shouldBe` []

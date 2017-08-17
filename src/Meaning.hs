@@ -143,6 +143,20 @@ primitives = M.fromList
     , mk "null" $ do a <- pop >>= castInt; push (B $ a == 0)
     , mk "succ" $ do a <- pop >>= castInt; push (I $ succ a)
     , mk "pred" $ do a <- pop >>= castInt; push (I $ pred a)
+    , mk "/" $ do
+        a <- pop >>= castInt
+        b <- pop >>= castInt
+        push (I $ b `div` a)
+    , mk "%" $ do
+        a <- pop >>= castInt
+        b <- pop >>= castInt
+        push (I $ b `mod` a)
+    , mk "div" $ do
+        a <- pop >>= castInt
+        b <- pop >>= castInt
+        let (q, r) = divMod b a
+        push (I q)
+        push (I r)
     , mk "print" $ pop >>= print . show
     , mk "ifte" $ do
         false <- pop

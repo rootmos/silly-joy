@@ -60,8 +60,10 @@ binding = do
     a <- term `sepEndBy` spaces
     return $ Binding n a
     where
-        name = many1 $ alphaNum
-               <|> oneOf ['+', '=', '<', '>', '!', '-', '*', '_']
+        name = many1 $ alphaNum <|> oneOf symbols
+
+symbols :: [Char]
+symbols = ['+', '=', '<', '>', '!', '-', '*', '_', '/', '%']
 
 term :: Parsec String st Term
 term = number <|> word <|> quoted <|> str
@@ -71,7 +73,7 @@ str = Str <$> between (char '"') (char '"') (many quoted_char)
     where
         quoted_char = space
                <|> alphaNum
-               <|> oneOf ['+', '=', '<', '>', '!', '-', '*', '_']
+               <|> oneOf symbols
                <|> (try (char '\\') >> char '"')
 
 word :: Parsec String st Term
@@ -79,7 +81,7 @@ word = do
     l <- letter <|> symbol
     ans <- many (alphaNum <|> symbol)
     return . Word $ l : ans
-        where symbol = oneOf ['+', '=', '<', '>', '!', '-', '*', '_']
+        where symbol = oneOf symbols
 
 number :: Parsec String st Term
 number = positive <|> try negative
