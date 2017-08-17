@@ -140,6 +140,19 @@ primitives = M.fromList
     , mk ">=" $ do a <- pop >>= castInt; b <- pop >>= castInt; push (B $ b >= a)
     , mk "=" $ do a <- pop >>= castInt; b <- pop >>= castInt; push (B $ b == a)
     , mk "!=" $ do a <- pop >>= castInt; b <- pop >>= castInt; push (B $ b /= a)
+    , mk "true" $ push (B True)
+    , mk "false" $ push (B False)
+    , mk "and" $ do
+        a <- pop >>= castBool
+        b <- pop >>= castBool
+        push (B $ a && b)
+    , mk "or" $ do
+        a <- pop >>= castBool
+        b <- pop >>= castBool
+        push (B $ a || b)
+    , mk "not" $ do
+        a <- pop >>= castBool
+        push (B $ not a)
     , mk "null" $ do a <- pop >>= castInt; push (B $ a == 0)
     , mk "succ" $ do a <- pop >>= castInt; push (I $ succ a)
     , mk "pred" $ do a <- pop >>= castInt; push (I $ pred a)

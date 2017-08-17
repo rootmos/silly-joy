@@ -221,6 +221,34 @@ spec_simulate =
         it "should simulate: 2 2 !=" $ do
             stack (simulateUnsafe "2 2 !=" []) `shouldBe` [B False]
 
+        it "should simulate: true" $ do
+            stack (simulateUnsafe "true" []) `shouldBe` [B True]
+        it "should simulate: false" $ do
+            stack (simulateUnsafe "false" []) `shouldBe` [B False]
+
+        it "should simulate: false false or" $ do
+            stack (simulateUnsafe "false false or" []) `shouldBe` [B False]
+        it "should simulate: true false or" $ do
+            stack (simulateUnsafe "true false or" []) `shouldBe` [B True]
+        it "should simulate: false true or" $ do
+            stack (simulateUnsafe "false true or" []) `shouldBe` [B True]
+        it "should simulate: true true or" $ do
+            stack (simulateUnsafe "true true or" []) `shouldBe` [B True]
+
+        it "should simulate: false false and" $ do
+            stack (simulateUnsafe "false false and" []) `shouldBe` [B False]
+        it "should simulate: true false and" $ do
+            stack (simulateUnsafe "true false and" []) `shouldBe` [B False]
+        it "should simulate: false true and" $ do
+            stack (simulateUnsafe "false true and" []) `shouldBe` [B False]
+        it "should simulate: true true and" $ do
+            stack (simulateUnsafe "true true and" []) `shouldBe` [B True]
+
+        it "should simulate: false not" $ do
+            stack (simulateUnsafe "false not" []) `shouldBe` [B True]
+        it "should simulate: true not" $ do
+            stack (simulateUnsafe "true not" []) `shouldBe` [B False]
+
         it "should simulate: [1 1 =] [7] [8] ifte" $ do
             stack (simulateUnsafe "[1 1 =] [7] [8] ifte" []) `shouldBe` [I 7]
         it "should simulate: [1 2 =] [7] [8] ifte" $ do
