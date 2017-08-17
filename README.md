@@ -37,5 +37,20 @@ docker run -it rootmos/silly-joy
 6
 > 1 swap - print
 -5
->
+> even := 2 % 0 =
+> odd := even not
+> 3 odd 2 even and print
+True
+> prime := [dup even [3 <] dip or] [2 =] [prime_trial_division] ifte
+> prime_trial_division := 3 [[pop % 0 =] [pop =] [[2 +] dip x] ifte] x
+> 2 prime print
+True
+> 3 prime print
+True
+> 4 prime print
+False
+> 9 prime print
+False
+> 13 prime print
+True
 ```

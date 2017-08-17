@@ -41,7 +41,6 @@ expect {
 expect -re $prompt
 send "\[\"foo\" \"bar\" strcat\] \[strlen\] b\r"
 
-
 expect -re $prompt
 send "dup print\r"
 expect {
@@ -53,5 +52,58 @@ expect -re $prompt
 send "1 swap - print\r"
 expect {
     -exact "-5" {}
+    timeout { exit 1 }
+}
+
+expect -re $prompt
+send "even := 2 % 0 =\r"
+
+expect -re $prompt
+send "odd := even not\r"
+
+expect -re $prompt
+send "3 odd 2 even and print\r"
+expect {
+    "True" {}
+    timeout { exit 1 }
+}
+
+expect -re $prompt
+send "prime := \[dup even \[3 <\] dip or\] \[2 =\] \[prime_trial_division\] ifte\r"
+expect -re $prompt
+send "prime_trial_division := 3 \[\[pop % 0 =\] \[pop =\] \[\[2 +\] dip x\] ifte\] x\r"
+
+expect -re $prompt
+send "2 prime print\r"
+expect {
+    "True" {}
+    timeout { exit 1 }
+}
+
+expect -re $prompt
+send "3 prime print\r"
+expect {
+    "True" {}
+    timeout { exit 1 }
+}
+
+expect -re $prompt
+send "4 prime print\r"
+expect {
+    "False" {}
+    timeout { exit 1 }
+}
+
+expect -re $prompt
+send "9 prime print\r"
+expect {
+    "False" {}
+    timeout { exit 1 }
+}
+
+expect -re $prompt
+send "13 prime print\r"
+expect {
+    "True" {}
     timeout { exit 1 }
 }
