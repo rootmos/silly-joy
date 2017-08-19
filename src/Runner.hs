@@ -14,6 +14,7 @@ import qualified Control.Eff as E
 import Control.Eff.Exception
 import Control.Eff.Lift
 import Control.Exception ( Exception, throw )
+import Control.Monad.IO.Class (liftIO, MonadIO)
 import Prelude hiding ( lookup, print )
 import Data.Typeable
 import Data.List (intercalate)
@@ -23,7 +24,7 @@ import Control.Natural
 import Parser
 import Meaning
 
-import System.Console.Haskeline (InputT, outputStrLn, getInputLine)
+import System.Console.Haskeline (InputT, outputStrLn, getInputLine, MonadException)
 
 initialState :: State
 initialState = State { stack = []
@@ -135,12 +136,14 @@ runRealWorldIO = freeMap return $ \u ->
         handle (Print s k) = lift (putStrLn s) >> runRealWorldIO k
         handle (Input k) = lift getLine >>= runRealWorldIO . k
 
-runRealWorldInputT :: Eff (RealWorldEffect :> e) ~> Eff (Lift (InputT IO) :> e)
+runRealWorldInputT :: (MonadIO m, Typeable m, MonadException m)
+                   => Eff (RealWorldEffect :> e) ~> Eff (Lift (InputT m) :> e)
 runRealWorldInputT = freeMap return $ \u ->
     transform u runRealWorldInputT handle
     where
-        handle :: RealWorldEffect (Eff (RealWorldEffect :> e) w)
-               -> Eff (Lift (InputT IO) :> e) w
+        handle :: (MonadIO m, Typeable m, MonadException m)
+               => RealWorldEffect (Eff (RealWorldEffect :> e) w)
+               -> Eff (Lift (InputT m) :> e) w
         handle (Print s k) = do
             lift (outputStrLn s)
             runRealWorldInputT k
@@ -163,6 +166,7 @@ runIO :: State -> Program -> IO (Either Error (State, ()))
 runIO s = runLift . runRealWorldIO . runExc
                   . runStateEffect s . unProgram
 
-runInputT :: State -> Program -> InputT IO (Either Error (State, ()))
+runInputT :: (MonadIO m, Typeable m, MonadException m)
+          => State -> Program -> InputT m (Either Error (State, ()))
 runInputT s = runLift . runRealWorldInputT . runExc
                       . runStateEffect s . unProgram

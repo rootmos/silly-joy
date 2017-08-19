@@ -23,6 +23,7 @@ library
                      , haskeline
                      , vty >= 5.15.1
                      , directory >= 1.3.0.0
+                     , mtl >= 2.2.1
   ghc-options:         -Wall
   default-language:    Haskell2010
 
