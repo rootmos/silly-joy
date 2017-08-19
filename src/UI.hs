@@ -19,7 +19,8 @@ import Data.Foldable (traverse_)
 import Control.Monad (void)
 import Control.Concurrent (forkFinally)
 
-import Control.Monad.IO.Class (liftIO)
+import Control.Monad.IO.Class (liftIO, MonadIO)
+import System.Directory (getAppUserDataDirectory)
 
 import Data.Maybe (fromMaybe)
 
@@ -91,8 +92,9 @@ runTui = do
         initialAppState
 
 runTuiInputT :: HB.Config Event -> BChan Event -> IO ()
-runTuiInputT c chan = runInputTBehavior (HB.useBrick c) defaultSettings $
-    loop R.initialState
+runTuiInputT c chan = do
+    hs <- haskelineSettings
+    runInputTBehavior (HB.useBrick c) hs $ loop R.initialState
     where
         loop s = do
             minput <- getInputLine "> "
@@ -112,7 +114,9 @@ runTuiInputT c chan = runInputTBehavior (HB.useBrick c) defaultSettings $
               Left e -> outputStrLn e >> loop s
 
 runRepl :: IO ()
-runRepl = runInputT defaultSettings $ loop R.initialState
+runRepl = do
+    hs <- haskelineSettings
+    runInputT hs $ loop R.initialState
     where
         loop s = do
             minput <- getInputLine "> "
@@ -132,3 +136,8 @@ runRepl = runInputT defaultSettings $ loop R.initialState
                     Right (s', ()) -> loop s'
                     Left e -> (outputStrLn $ show e) >> loop s
               Left e -> outputStrLn e >> loop s
+
+haskelineSettings :: MonadIO m => IO (Settings m)
+haskelineSettings = do
+    hf <- getAppUserDataDirectory "silly-joy.history"
+    return $ defaultSettings { historyFile = Just hf }
