@@ -4,7 +4,7 @@ packages:
   - '.'
   - location:
       git: https://github.com/rootmos/haskeline.git
-      commit: 48905be8dd64e7df2cba0f247d48ef3348ad13de
+      commit: bcd94f5cc0c4e919cbda3bb43dde482cac56dd51
 
 flags:
   haskeline:
