@@ -99,7 +99,7 @@ send "next-fib := dup \[+\] dip swap\r"
 expect -re $prompt
 send "add-if-even := \[even\] \[dup \[rotate\] dip + rotate\] \[\] ifte\r"
 expect -re $prompt
-send "0 1 1 \[\[pop 100 >\] \[pop pop pop\] \[\[next-fib add-if-even\] dip x\] ifte\] x print\r"
+send "0 1 1 \[100 >\] \[pop pop\] \[next-fib add-if-even\] \[i\] genrec print\r"
 expect {
     "188" {}
     timeout { exit 1 }

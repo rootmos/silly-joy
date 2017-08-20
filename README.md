@@ -52,6 +52,6 @@ true
 23
 > next-fib := dup [+] dip swap
 > add-if-even := [even] [dup [rotate] dip + rotate] [] ifte
-> 0 1 1 [[pop 100 >] [pop pop pop] [[next-fib add-if-even] dip x] ifte] x print
+> 0 1 1 [100 >] [pop pop] [next-fib add-if-even] [i] genrec print
 188
 ```

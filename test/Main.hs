@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 module Main where
 
 import Test.Hspec
@@ -169,13 +170,13 @@ spec_simulate =
                 `shouldBe` [I 8, I 7, I 8, I 7]
         it "should simulate: [foo] +" $ do
             evaluate (simulateUnsafe "[foo] +" [])
-                `shouldThrow` (== TypeMismatch)
+                `shouldThrow` (\case {TypeMismatch _ _ -> True; _ -> False})
         it "should simulate: [foo] 1 +" $ do
             evaluate (simulateUnsafe "[foo] 1 +" [])
-                `shouldThrow` (== TypeMismatch)
+                `shouldThrow` (\case {TypeMismatch _ _ -> True; _ -> False})
         it "should simulate: 1 i" $ do
             evaluate (simulateUnsafe "1 i" [])
-                `shouldThrow` (== TypeMismatch)
+                `shouldThrow` (\case {TypeMismatch _ _ -> True; _ -> False})
 
         it "should simulate: 2 3 4 [+] dip" $ do
             stack (simulateUnsafe "2 3 4 [+] dip" []) `shouldBe` [I 4, I 5]
@@ -185,7 +186,7 @@ spec_simulate =
                 `shouldThrow` (== PoppingEmptyStack)
         it "should simulate: [foo] 1 dip" $ do
             evaluate (simulateUnsafe "[foo] 1 dip" [])
-                `shouldThrow` (== TypeMismatch)
+                `shouldThrow` (\case {TypeMismatch _ _ -> True; _ -> False})
 
         it "should simulate: 1 2 <" $ do
             stack (simulateUnsafe "1 2 <" []) `shouldBe` [B True]
@@ -264,11 +265,23 @@ spec_simulate =
             stack (simulateUnsafe "0 null" []) `shouldBe` [B True]
         it "should simulate: 1 null" $ do
             stack (simulateUnsafe "1 null" []) `shouldBe` [B False]
-
         it "should simulate: [] null" $ do
             stack (simulateUnsafe "[] null" []) `shouldBe` [B True]
         it "should simulate: [1] null" $ do
             stack (simulateUnsafe "[1] null" []) `shouldBe` [B False]
+
+        it "should simulate: 0 small" $ do
+            stack (simulateUnsafe "0 small" []) `shouldBe` [B True]
+        it "should simulate: 1 small" $ do
+            stack (simulateUnsafe "1 small" []) `shouldBe` [B True]
+        it "should simulate: 2 small" $ do
+            stack (simulateUnsafe "2 small" []) `shouldBe` [B False]
+        it "should simulate: [] small" $ do
+            stack (simulateUnsafe "[] small" []) `shouldBe` [B True]
+        it "should simulate: [1] small" $ do
+            stack (simulateUnsafe "[1] small" []) `shouldBe` [B True]
+        it "should simulate: [1 2] small" $ do
+            stack (simulateUnsafe "[1 2] small" []) `shouldBe` [B False]
 
         it "should simulate: 0 succ" $ do
             stack (simulateUnsafe "0 succ" []) `shouldBe` [I 1]
@@ -379,7 +392,7 @@ spec_simulate =
 
         it "should simulate: 1 strlen" $ do
             evaluate (simulateUnsafe "1 strlen" [])
-                `shouldThrow` (== TypeMismatch)
+                `shouldThrow` (\case {TypeMismatch _ _ -> True; _ -> False})
 
         it "should simulate: \"foo\" \"bar\" strcat" $ do
             stack (simulateUnsafe "\"foo\" \"bar\" strcat" [])
@@ -518,3 +531,7 @@ spec_simulate =
         it "should simulate: 1 2 3 [+] app2" $ do
             stack (simulateUnsafe "1 2 3 [+] app2" [])
                 `shouldBe` [I 4, I 3, I 1]
+
+        it "should simulate: 12 [small] [] [pred dup pred] [app2 +] genrec" $ do
+            stack (simulateUnsafe "12 [small] [] [pred dup pred] [app2 +] genrec" [])
+                `shouldBe` [I 144]

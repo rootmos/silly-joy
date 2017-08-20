@@ -58,7 +58,7 @@ data Error = Undefined Name
            | PoppingEmptyStack
            | PeekingEmptyStack
            | PoppingEmptyStateStack
-           | TypeMismatch
+           | TypeMismatch Value String
            | UnparseableAsNumber String
            | EmptyAggregate
     deriving ( Show, Eq )
@@ -160,7 +160,17 @@ primitives = M.fromList
           I _ -> push $ B False
           A [] -> push $ B True
           A _ -> push $ B False
-          _ -> throwExc TypeMismatch
+          _ -> throwExc $ TypeMismatch v "expecting number or aggregate"
+    , mk "small" $ do
+        v <- pop
+        case v of
+          I 0 -> push $ B True
+          I 1 -> push $ B True
+          I _ -> push $ B False
+          A [] -> push $ B True
+          A (_:[]) -> push $ B True
+          A _ -> push $ B False
+          _ -> throwExc $ TypeMismatch v "expecting number or aggregate"
     , mk "succ" $ do a <- pop >>= castInt; push (I $ succ a)
     , mk "pred" $ do a <- pop >>= castInt; push (I $ pred a)
     , mk "/" $ do
@@ -183,13 +193,13 @@ primitives = M.fromList
         true <- pop
         cond <- pop
 
-        c <- local (castProgram cond >>= unProgram >> pop >>= castBool)
+        c <- local (castProgram cond >>= unProgram >> peek >>= castBool)
         case c of
           True -> castProgram true >>= unProgram
           False -> castProgram false >>= unProgram
     , mk "I" $ do
         p <- pop >>= castProgram
-        v <- local (unProgram p >> pop)
+        v <- local (unProgram p >> peek)
         push v
     , mk "swap" $ do a <- pop; b <- pop; push a; push b
     , mk "concat" $ do
@@ -283,9 +293,22 @@ primitives = M.fromList
         t <- pop >>= castProgram
         p <- pop >>= castProgram
         let loop = do
-                b <- local (unProgram p >> pop >>= castBool)
+                b <- local (unProgram p >> peek >>= castBool)
                 if b then unProgram t
                      else unProgram r1 >> loop >> unProgram r2
+        loop
+    , mk "genrec" $ do
+        let loop = do
+                r2 <- pop
+                r1 <- pop
+                t <- pop
+                b <- pop
+                b' <- local (castProgram b >>= unProgram >> peek >>= castBool)
+                if b' then castProgram t >>= unProgram
+                      else do
+                          castProgram r1 >>= unProgram
+                          push $ A [b, t, r1, r2, P $ MkProgram loop []]
+                          castProgram r2 >>= unProgram
         loop
     , mk "times" $ do
         n <- pop >>= castInt
@@ -295,8 +318,8 @@ primitives = M.fromList
         p <- pop >>= castProgram
         as <- pop >>= castAggregate
         as' <- sequence $ flip fmap as $
-            \case { P q -> local $ unProgram q >> unProgram p >> pop;
-                    v -> local $ push v >> unProgram p >> pop
+            \case { P q -> local $ unProgram q >> unProgram p >> peek;
+                    v -> local $ push v >> unProgram p >> peek
                   }
         push $ A as'
     , mk "filter" $ do
@@ -307,7 +330,7 @@ primitives = M.fromList
               P q -> unProgram q
               _ -> push v
             unProgram p
-            b <- pop >>= castBool
+            b <- peek >>= castBool
             return $ if b then [v] else []
         push $ A $ concat as'
     , mk "fold" $ do
@@ -324,8 +347,8 @@ primitives = M.fromList
         f <- pop >>= castProgram
         b <- pop
         a <- pop
-        b' <- local (push b >> unProgram f >> pop)
-        a' <- local (push a >> unProgram f >> pop)
+        b' <- local (push b >> unProgram f >> peek)
+        a' <- local (push a >> unProgram f >> peek)
         push a'
         push b'
     ]
@@ -347,24 +370,28 @@ primitives = M.fromList
                             MkProgram { unProgram = push (S s)
                                       , ast = [Str s]
                                       }
+                        weakCastProgram (A xs) = return $
+                            MkProgram { unProgram = push $ A xs
+                                      , ast = [] -- TODO: Are any casted programs shown to the user?
+                                      }
                         weakCastProgram v = castProgram v
-            castProgram _ = throwExc TypeMismatch
+            castProgram v = throwExc $ TypeMismatch v "expecting program"
 
             castAggregate :: Member (Exc Error) e => Value -> Eff e [Value]
             castAggregate (A xs) = return xs
-            castAggregate _ = throwExc TypeMismatch
+            castAggregate v = throwExc $ TypeMismatch v "expecting aggregate"
 
             castInt :: Member (Exc Error) e => Value -> Eff e Integer
             castInt (I i) = return i
-            castInt _ = throwExc TypeMismatch
+            castInt v = throwExc $ TypeMismatch v "expecting number"
 
             castBool :: Member (Exc Error) e => Value -> Eff e Bool
             castBool (B b) = return b
-            castBool _ = throwExc TypeMismatch
+            castBool v = throwExc $ TypeMismatch v "expecting boolean"
 
             castStr :: Member (Exc Error) e => Value -> Eff e String
             castStr (S s) = return s
-            castStr _ = throwExc TypeMismatch
+            castStr v = throwExc $ TypeMismatch v "expecting string"
 
 -- Meaning function
 --  - AST is just [Term]: the syntactic monoid
