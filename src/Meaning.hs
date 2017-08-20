@@ -320,7 +320,14 @@ primitives = M.fromList
                        }
         push z
         go as
-
+    , mk "app2" $ do
+        f <- pop >>= castProgram
+        b <- pop
+        a <- pop
+        b' <- local (push b >> unProgram f >> pop)
+        a' <- local (push a >> unProgram f >> pop)
+        push a'
+        push b'
     ]
         where
             mk n p = (n, MkProgram { unProgram = p, ast = [Word n] })
