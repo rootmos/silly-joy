@@ -201,7 +201,8 @@ primitives = M.fromList
     , mk "first" $ do
         ag <- pop >>= castAggregate
         case ag of
-          a:_ -> castProgram a >>= unProgram
+          (P p):_ -> unProgram p
+          v:_ -> push v
           [] -> throwExc EmptyAggregate
     , mk "rest" $ do
         ag <- pop >>= castAggregate

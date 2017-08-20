@@ -304,6 +304,14 @@ spec_simulate =
             evaluate (simulateUnsafe "[] first" [])
                 `shouldThrow` (== EmptyAggregate)
 
+        it "should simulate: 1 [] cons [] cons first first" $ do
+            stack (simulateUnsafe "1 [] cons [] cons first first" [])
+                `shouldBe` [I 1]
+
+        it "should simulate: 1 2 [+ 4] first" $ do
+            stack (simulateUnsafe "1 2 [+ 4] first" []) `shouldBe` [I 3]
+
+
         it "should simulate: [] size" $ do
             stack (simulateUnsafe "[] size" []) `shouldBe` [I 0]
 
