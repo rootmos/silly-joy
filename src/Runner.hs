@@ -83,6 +83,10 @@ runStateEffect st = freeMap (\x -> return (st, x))
             let s' = s { dict = M.insert n p d }
             runStateEffect s' k
 
+        handle s (ClearStack k) = do
+            let s' = s { stack = [] }
+            runStateEffect s' k
+
 
 data SimulatedIO = ExpectOutput String | SendInput String
 

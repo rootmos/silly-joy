@@ -70,6 +70,7 @@ data StateEffect v = Push Value v
                    | Pop (Value -> v)
                    | Peek (Value -> v)
                    | Lookup Name (Program -> v)
+                   | ClearStack v
                    | PushState v
                    | PopState v
                    | Bind Name Program v
@@ -97,6 +98,8 @@ local p = do
 bind :: Member StateEffect e => Name -> Program -> Eff e ()
 bind n p = E.send . inj $ Bind n p ()
 
+clear :: Member StateEffect e => Eff e ()
+clear = E.send . inj $ ClearStack ()
 
 -- RealWorldEffect
 
@@ -116,16 +119,11 @@ input = E.send . inj $ Input id
 
 primitives :: M.Map Name Program
 primitives = M.fromList
-    [ mk "pop" $ do
-        _ <- pop
-        return ()
-    , mk "i" $ do
-        pop >>= castProgram >>= unProgram
-    , mk "x" $ do
-        peek >>= castProgram >>= unProgram
-    , mk "dup" $ do
-        v <- peek
-        push v
+    [ mk "pop" $ pop >> return ()
+    , mk "clear" $ clear
+    , mk "i" $ pop >>= castProgram >>= unProgram
+    , mk "x" $ peek >>= castProgram >>= unProgram
+    , mk "dup" $ peek >>= push
     , mk "dip" $ do
         p <- pop
         v <- pop

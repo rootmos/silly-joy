@@ -460,3 +460,8 @@ spec_simulate =
         it "should simulate: [1] 5 times" $ do
             stack (simulateUnsafe "[1] 5 times" [])
                 `shouldBe` [I 1, I 1, I 1, I 1, I 1]
+
+        it "should simulate: clear" $ do
+            stack (simulateUnsafe "clear" []) `shouldBe` []
+        it "should simulate: 1 2 clear" $ do
+            stack (simulateUnsafe "1 2 clear" []) `shouldBe` []
