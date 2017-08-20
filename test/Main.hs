@@ -501,3 +501,11 @@ spec_simulate =
         it "should simulate: 1 [2 3 4] cons [2 % null] filter i" $ do
             stack (simulateUnsafe "1 [2 3 4] cons [2 % null] filter i" [])
                 `shouldBe` [I 4, I 2]
+
+        it "should simulate: [1 2 3 4] 0 [+] fold" $ do
+            stack (simulateUnsafe "[1 2 3 4] 0 [+] fold" [])
+                `shouldBe` [I 10]
+
+        it "should simulate: 1 [2 3 4] cons 0 [+] fold" $ do
+            stack (simulateUnsafe "1 [2 3 4] cons 0 [+] fold" [])
+                `shouldBe` [I 10]

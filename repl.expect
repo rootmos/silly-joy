@@ -74,36 +74,21 @@ expect -re $prompt
 send "prime_trial_division := 3 \[\[pop % 0 =\] \[pop =\] \[\[2 +\] dip x\] ifte\] x\r"
 
 expect -re $prompt
-send "2 prime print\r"
+send "\[2 3 4 5 6 7 8 9 10 11 12 13\] \[prime\] map print\r"
 expect {
-    "True" {}
+    "\\\[True True False True False True False False False True False True\\\]" {}
     timeout { exit 1 }
 }
 
 expect -re $prompt
-send "3 prime print\r"
-expect {
-    "True" {}
-    timeout { exit 1 }
-}
-
+send "sum := 0 \[+\] fold\r"
 expect -re $prompt
-send "4 prime print\r"
-expect {
-    "False" {}
-    timeout { exit 1 }
-}
-
+send "div-3-5 := \[dup \[3 % null\] dip 5 % null or\] filter\r"
 expect -re $prompt
-send "9 prime print\r"
-expect {
-    "False" {}
-    timeout { exit 1 }
-}
-
+send "up-to := 1 - \[\[\]\] \[cons\] primrec\r"
 expect -re $prompt
-send "13 prime print\r"
+send "10 up-to div-3-5 sum print\r"
 expect {
-    "True" {}
+    "23" {}
     timeout { exit 1 }
 }

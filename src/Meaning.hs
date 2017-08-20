@@ -309,6 +309,17 @@ primitives = M.fromList
             b <- pop >>= castBool
             return $ if b then [v] else []
         push $ A $ concat as'
+    , mk "fold" $ do
+        f <- pop >>= castProgram
+        z <- pop
+        as <- pop >>= castAggregate
+        let go = \case { [] -> return ();
+                         (P p:tl) -> unProgram p >> unProgram f >> go tl;
+                         (v:tl) -> push v >> unProgram f >> go tl
+                       }
+        push z
+        go as
+
     ]
         where
             mk n p = (n, MkProgram { unProgram = p, ast = [Word n] })
