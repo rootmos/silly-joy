@@ -48,7 +48,8 @@ data Value = A [Value] | P Program | I Integer | B Bool | S String
 
 instance Show Value where
     show (I i) = show i
-    show (B b) = show b
+    show (B True) = "true"
+    show (B False) = "false"
     show (A xs) = "[" ++ (intercalate " " $ map show xs) ++ "]"
     show (P p) = show p
     show (S s) = "\"" ++ s ++ "\""
