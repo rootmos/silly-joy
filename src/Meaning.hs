@@ -211,8 +211,11 @@ primitives = M.fromList
     , mk "uncons" $ do
         ag <- pop >>= castAggregate
         case ag of
-          a:tl -> do
-              castProgram a >>= unProgram
+          (P p):tl -> do
+              unProgram p
+              push $ A tl
+          v:tl -> do
+              push v
               push $ A tl
           [] -> throwExc EmptyAggregate
     , mk "strlen" $ do

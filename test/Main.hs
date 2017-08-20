@@ -345,6 +345,13 @@ spec_simulate =
             stack (simulateUnsafe "[1 2 3] uncons i" [])
                 `shouldBe` [I 3, I 2, I 1]
 
+        it "should simulate: 1 [2] cons uncons i" $ do
+            stack (simulateUnsafe "1 [2] cons uncons i" [])
+                `shouldBe` [I 2, I 1]
+
+        it "should simulate: 1 2 [+ 4] uncons i" $ do
+            stack (simulateUnsafe "1 2 [+ 4] uncons i" [])
+                `shouldBe` [I 4, I 3]
 
         it "should simulate factorial example" $ do
             stack (flip simulateUnsafe [] $
