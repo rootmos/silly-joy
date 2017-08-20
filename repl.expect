@@ -71,7 +71,7 @@ expect {
 expect -re $prompt
 send "prime := \[dup even \[3 <\] dip or\] \[2 =\] \[prime_trial_division\] ifte\r"
 expect -re $prompt
-send "prime_trial_division := 3 \[\[pop % 0 =\] \[pop =\] \[\[2 +\] dip x\] ifte\] x\r"
+send "prime_trial_division := 3 \[\[pop % null\] \[pop =\] \[\[2 +\] dip x\] ifte\] x\r"
 
 expect -re $prompt
 send "\[2 3 4 5 6 7 8 9 10 11 12 13\] \[prime\] map print\r"
@@ -85,10 +85,22 @@ send "sum := 0 \[+\] fold\r"
 expect -re $prompt
 send "div-3-5 := \[dup \[3 % null\] dip 5 % null or\] filter\r"
 expect -re $prompt
-send "up-to := 1 - \[\[\]\] \[cons\] primrec\r"
+send "up-to := pred \[\[\]\] \[cons\] primrec\r"
 expect -re $prompt
 send "10 up-to div-3-5 sum print\r"
 expect {
     "23" {}
+    timeout { exit 1 }
+}
+
+
+expect -re $prompt
+send "next-fib := dup \[+\] dip swap\r"
+expect -re $prompt
+send "add-if-even := \[even\] \[dup \[rotate\] dip + rotate\] \[\] ifte\r"
+expect -re $prompt
+send "0 1 1 \[\[pop 100 >\] \[pop pop pop\] \[\[next-fib add-if-even\] dip x\] ifte\] x print\r"
+expect {
+    "188" {}
     timeout { exit 1 }
 }

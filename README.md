@@ -42,12 +42,16 @@ docker run -it rootmos/silly-joy
 > 3 odd 2 even and print
 true
 > prime := [dup even [3 <] dip or] [2 =] [prime_trial_division] ifte
-> prime_trial_division := 3 [[pop % 0 =] [pop =] [[2 +] dip x] ifte] x
+> prime_trial_division := 3 [[pop % null] [pop =] [[2 +] dip x] ifte] x
 > [2 3 4 5 6 7 8 9 10 11 12 13] [prime] map print
 [true true false true false true false false false true false true]
 > sum := 0 [+] fold
 > div-3-5 := [dup [3 % null] dip 5 % null or] filter
-> up-to := 1 - [[]] [cons] primrec
+> up-to := pred [[]] [cons] primrec
 > 10 up-to div-3-5 sum print
 23
+> next-fib := dup [+] dip swap
+> add-if-even := [even] [dup [rotate] dip + rotate] [] ifte
+> 0 1 1 [[pop 100 >] [pop pop pop] [[next-fib add-if-even] dip x] ifte] x print
+188
 ```
