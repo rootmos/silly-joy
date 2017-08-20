@@ -480,3 +480,19 @@ spec_simulate =
             stack (simulateUnsafe "clear" []) `shouldBe` []
         it "should simulate: 1 2 clear" $ do
             stack (simulateUnsafe "1 2 clear" []) `shouldBe` []
+
+        it "should simulate: [1 2 3] [1 +] map i" $ do
+            stack (simulateUnsafe "[1 2 3] [1 +] map i" [])
+                `shouldBe` [I 4, I 3, I 2]
+
+        it "should simulate: 1 [] cons [1 +] map i" $ do
+            stack (simulateUnsafe "1 [] cons [1 +] map i" [])
+                `shouldBe` [I 2]
+
+        it "should simulate: [1 2 3 4] [2 % null] filter i" $ do
+            stack (simulateUnsafe "[1 2 3 4] [2 % null] filter i" [])
+                `shouldBe` [I 4, I 2]
+
+        it "should simulate: 1 [2 3 4] cons [2 % null] filter i" $ do
+            stack (simulateUnsafe "1 [2 3 4] cons [2 % null] filter i" [])
+                `shouldBe` [I 4, I 2]

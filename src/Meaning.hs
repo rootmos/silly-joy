@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts, DeriveFunctor, TypeOperators, TypeFamilies #-}
+{-# LANGUAGE LambdaCase #-}
 module Meaning ( Program (unProgram)
                , StateEffect (..)
                , RealWorldEffect (..)
@@ -282,6 +283,25 @@ primitives = M.fromList
         n <- pop >>= castInt
         p <- pop >>= castProgram
         sequence_ $ replicate (fromInteger n) $ unProgram p
+    , mk "map" $ do
+        p <- pop >>= castProgram
+        as <- pop >>= castAggregate
+        as' <- sequence $ flip fmap as $
+            \case { P q -> local $ unProgram q >> unProgram p >> pop;
+                    v -> local $ push v >> unProgram p >> pop
+                  }
+        push $ A as'
+    , mk "filter" $ do
+        p <- pop >>= castProgram
+        as <- pop >>= castAggregate
+        as' <- sequence $ flip fmap as $ \v -> local $ do
+            case v of
+              P q -> unProgram q
+              _ -> push v
+            unProgram p
+            b <- pop >>= castBool
+            return $ if b then [v] else []
+        push $ A $ concat as'
     ]
         where
             mk n p = (n, MkProgram { unProgram = p, ast = [Word n] })
