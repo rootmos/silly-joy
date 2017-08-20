@@ -265,6 +265,11 @@ spec_simulate =
         it "should simulate: 1 null" $ do
             stack (simulateUnsafe "1 null" []) `shouldBe` [B False]
 
+        it "should simulate: [] null" $ do
+            stack (simulateUnsafe "[] null" []) `shouldBe` [B True]
+        it "should simulate: [1] null" $ do
+            stack (simulateUnsafe "[1] null" []) `shouldBe` [B False]
+
         it "should simulate: 0 succ" $ do
             stack (simulateUnsafe "0 succ" []) `shouldBe` [I 1]
         it "should simulate: 1 pred" $ do

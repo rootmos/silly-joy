@@ -152,7 +152,14 @@ primitives = M.fromList
     , mk "not" $ do
         a <- pop >>= castBool
         push (B $ not a)
-    , mk "null" $ do a <- pop >>= castInt; push (B $ a == 0)
+    , mk "null" $ do
+        v <- pop
+        case v of
+          I 0 -> push $ B True
+          I _ -> push $ B False
+          A [] -> push $ B True
+          A _ -> push $ B False
+          _ -> throwExc TypeMismatch
     , mk "succ" $ do a <- pop >>= castInt; push (I $ succ a)
     , mk "pred" $ do a <- pop >>= castInt; push (I $ pred a)
     , mk "/" $ do
