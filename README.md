@@ -16,8 +16,14 @@ Here are some resources:
 ## Try it out!
 Simplest way to try it out is by using Docker:
 ```
-docker run -it rootmos/silly-joy
+docker run -it rootmos/silly-joy --tui
 ```
+You'll be greeted by a terminal UI with the REPL as well as
+a window showing the current stack. Very convenient when learning stack-based
+languages!
+
+![demo](../master/demo.gif)
+
 
 ## Example session
 
