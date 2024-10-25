@@ -1,5 +1,5 @@
 # silly-joy
-[![Build Status](https://travis-ci.org/rootmos/silly-joy.svg?branch=master)](https://travis-ci.org/rootmos/silly-joy)
+[![Build, test and push image](https://github.com/rootmos/silly-joy/actions/workflows/build-test-push.yaml/badge.svg)](https://github.com/rootmos/silly-joy/actions/workflows/build-test-push.yaml)
 
 `silly-joy` is an interpreter for the concatenative programming
 language Joy, implemented in Haskell using
