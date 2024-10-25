@@ -1,6 +1,5 @@
 FROM fpco/stack-build:lts-8.23 as builder
 
-
 RUN mkdir /silly-joy
 WORKDIR /silly-joy
 

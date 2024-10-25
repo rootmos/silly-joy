@@ -1,0 +1,19 @@
+name: Run tests
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Check out repository code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Run tests (by building the builder)
+      run: docker build --progress=plain --target=builder .
