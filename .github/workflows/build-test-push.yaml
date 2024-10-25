@@ -39,3 +39,9 @@ jobs:
       run: |
         docker tag $(<iid) rootmos/silly-joy:$GITHUB_SHA
         docker push rootmos/silly-joy:$GITHUB_SHA
+
+    - name: Mark as latest image
+      if: github.ref_name == 'master'
+      run: |
+        docker tag $(<iid) rootmos/silly-joy:latest
+        docker push rootmos/silly-joy:latest
